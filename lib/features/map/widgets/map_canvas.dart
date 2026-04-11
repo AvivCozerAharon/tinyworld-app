@@ -16,10 +16,10 @@ class MapCanvas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: walkAnimation,
+    return ListenableBuilder(
+      listenable: walkAnimation,
       builder: (_, __) => CustomPaint(
-        painter: _WorldPainter(
+        painter: _PokemonWorldPainter(
           simulations: simulations,
           tick: walkAnimation.value,
         ),
@@ -45,190 +45,457 @@ class MapCanvas extends StatelessWidget {
   }
 }
 
-class _WorldPainter extends CustomPainter {
+class _PokemonWorldPainter extends CustomPainter {
   final List<SimulationEntry> simulations;
   final double tick;
 
-  static const _grassDark = Color(0xFF3E8E41);
-  static const _grassLight = Color(0xFF66BB6A);
-  static const _pathColor = Color(0xFFD7CCC8);
-  static const _skyTop = Color(0xFF81D4FA);
-  static const _skyBottom = Color(0xFFE1F5FE);
-
-  _WorldPainter({required this.simulations, required this.tick});
+  _PokemonWorldPainter({required this.simulations, required this.tick});
 
   @override
   void paint(Canvas canvas, Size size) {
-    _drawSky(canvas, size);
-    _drawGrass(canvas, size);
-    _drawPaths(canvas, size);
-    _drawTrees(canvas, size);
-    _drawHouses(canvas, size);
-    _drawFlowers(canvas, size);
+    final groundY = size.height * 0.22;
+
+    _drawSky(canvas, size, groundY);
+    _drawMountains(canvas, size, groundY);
+    _drawGround(canvas, size, groundY);
+    _drawWater(canvas, size, groundY);
+    _drawPaths(canvas, size, groundY);
+    _drawGrassDetails(canvas, size, groundY);
+    _drawPixelTrees(canvas, size, groundY);
+    _drawPixelHouses(canvas, size, groundY);
+    _drawPixelFlowers(canvas, size, groundY);
 
     final cx = size.width / 2;
-    final cy = size.height / 2;
+    final cy = size.height * 0.55;
 
     for (final sim in simulations) {
-      _drawDashedLine(canvas, cx, cy, sim.x * size.width, sim.y * size.height, sim);
+      _drawDashedLine(canvas, cx, cy, sim.x * size.width,
+          sim.y * size.height, sim);
     }
 
     for (final sim in simulations) {
-      _drawSimCharacter(canvas, sim.x * size.width, sim.y * size.height, sim);
+      _drawSimCharacter(
+          canvas, sim.x * size.width, sim.y * size.height, sim);
     }
 
-    final bounce = 3 * sin(tick * pi * 2);
-    _drawCharacter(canvas, cx, cy + bounce, const Color(0xFF6C63FF), 'Você',
-        radius: 16, showCrown: true);
+    final bounce = 2 * sin(tick * pi * 2);
+    final stepPhase = tick * 2 * pi;
+    _drawPlayerCharacter(canvas, cx, cy + bounce, stepPhase);
   }
 
-  void _drawSky(Canvas canvas, Size size) {
-    final skyH = size.height * 0.18;
-    final paint = Paint()
-      ..shader = LinearGradient(
+  void _drawSky(Canvas canvas, Size size, double groundY) {
+    final skyPaint = Paint()
+      ..shader = const LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [_skyTop, _skyBottom],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, skyH));
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, skyH), paint);
-    _drawCloud(canvas, size.width * 0.15, skyH * 0.3, 1.0);
-    _drawCloud(canvas, size.width * 0.55, skyH * 0.5, 0.7);
-    _drawCloud(canvas, size.width * 0.82, skyH * 0.35, 0.85);
+        colors: [
+          Color(0xFF87CEEB),
+          Color(0xFFB8E4F9),
+          Color(0xFFDCF0FF),
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, groundY));
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, groundY), skyPaint);
+
+    final cloudPaint = Paint()..color = Colors.white.withValues(alpha: 0.9);
+    _drawPixelCloud(canvas, size.width * 0.12, groundY * 0.25, 1.2, cloudPaint);
+    _drawPixelCloud(canvas, size.width * 0.5, groundY * 0.4, 0.9, cloudPaint);
+    _drawPixelCloud(canvas, size.width * 0.82, groundY * 0.2, 1.0, cloudPaint);
   }
 
-  void _drawCloud(Canvas canvas, double x, double y, double scale) {
-    final p = Paint()..color = Colors.white.withValues(alpha: 0.85);
-    final s = scale * 18;
-    canvas.drawCircle(Offset(x, y), s, p);
-    canvas.drawCircle(Offset(x - s * 0.8, y + s * 0.2), s * 0.7, p);
-    canvas.drawCircle(Offset(x + s * 0.9, y + s * 0.15), s * 0.75, p);
+  void _drawPixelCloud(Canvas canvas, double x, double y, double s, Paint paint) {
+    final p = 4.0 * s;
+    for (final dy in [0.0, -p]) {
+      for (final dx in [-3 * p, -2 * p, -1 * p, 0.0, p, 2 * p]) {
+        canvas.drawRect(Rect.fromLTWH(x + dx, y + dy, p, p), paint);
+      }
+    }
+    for (final dx in [-4 * p, -3 * p, 3 * p, 4 * p]) {
+      canvas.drawRect(Rect.fromLTWH(x + dx, y + p, p, p), paint);
+    }
+    for (final dx in [-2 * p, -1 * p, 0.0, p]) {
+      canvas.drawRect(Rect.fromLTWH(x + dx, y - 2 * p, p, p), paint);
+    }
   }
 
-  void _drawGrass(Canvas canvas, Size size) {
-    final grassTop = size.height * 0.14;
+  void _drawMountains(Canvas canvas, Size size, double groundY) {
+    final mtPaint = Paint()..color = const Color(0xFF7CB342);
+    final mtDark = Paint()..color = const Color(0xFF689F38);
+    final snowPaint = Paint()..color = Colors.white;
+
+    final peaks = [
+      [size.width * 0.15, groundY, 60.0],
+      [size.width * 0.45, groundY, 45.0],
+      [size.width * 0.75, groundY, 55.0],
+    ];
+    for (final pk in peaks) {
+      final px = pk[0], py = pk[1], h = pk[2];
+      final path = Path()
+        ..moveTo(px - h * 1.2, py)
+        ..lineTo(px, py - h)
+        ..lineTo(px + h * 1.2, py)
+        ..close();
+      canvas.drawPath(path, mtPaint);
+      final darkPath = Path()
+        ..moveTo(px + h * 0.3, py)
+        ..lineTo(px, py - h)
+        ..lineTo(px + h * 1.2, py)
+        ..close();
+      canvas.drawPath(darkPath, mtDark);
+      final snowPath = Path()
+        ..moveTo(px - h * 0.25, py - h * 0.7)
+        ..lineTo(px, py - h)
+        ..lineTo(px + h * 0.25, py - h * 0.7)
+        ..close();
+      canvas.drawPath(snowPath, snowPaint);
+    }
+  }
+
+  void _drawGround(Canvas canvas, Size size, double groundY) {
+    final grassPaint = Paint()..color = const Color(0xFF8BC34A);
     canvas.drawRect(
-      Rect.fromLTWH(0, grassTop, size.width, size.height - grassTop),
-      Paint()..color = _grassLight,
+      Rect.fromLTWH(0, groundY, size.width, size.height - groundY),
+      grassPaint,
     );
-    final tileW = size.width / 10;
-    final tileH = (size.height - grassTop) / 14;
-    for (int i = 0; i < 10; i++) {
-      for (int j = 0; j < 14; j++) {
-        if ((i + j) % 2 == 0) {
+
+    const tileW = 20.0;
+    const tileH = 20.0;
+    final darkGrass = Paint()..color = const Color(0xFF7CB342);
+    for (double x = 0; x < size.width; x += tileW) {
+      for (double y = groundY; y < size.height; y += tileH) {
+        final ix = (x / tileW).floor();
+        final iy = ((y - groundY) / tileH).floor();
+        if ((ix + iy) % 2 == 0) {
           canvas.drawRect(
-            Rect.fromLTWH(i * tileW, grassTop + j * tileH, tileW, tileH),
-            Paint()..color = _grassDark.withValues(alpha: 0.25),
+            Rect.fromLTWH(x, y, tileW, tileH),
+            darkGrass,
           );
         }
       }
     }
   }
 
-  void _drawPaths(Canvas canvas, Size size) {
-    final grassTop = size.height * 0.14;
-    final paint = Paint()
-      ..color = _pathColor
-      ..strokeWidth = 12
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(Offset(0, size.height * 0.5),
-        Offset(size.width, size.height * 0.5), paint);
-    canvas.drawLine(Offset(size.width * 0.5, grassTop),
-        Offset(size.width * 0.5, size.height), paint);
-  }
+  void _drawWater(Canvas canvas, Size size, double groundY) {
+    final waterPaint = Paint()..color = const Color(0xFF42A5F5);
+    final waterX = size.width * 0.7;
+    final waterW = size.width * 0.28;
+    final waterY = groundY + (size.height - groundY) * 0.5;
+    final waterH = (size.height - groundY) * 0.25;
 
-  void _drawTrees(Canvas canvas, Size size) {
-    final positions = [
-      Offset(size.width * 0.08, size.height * 0.25),
-      Offset(size.width * 0.88, size.height * 0.3),
-      Offset(size.width * 0.12, size.height * 0.75),
-      Offset(size.width * 0.92, size.height * 0.8),
-      Offset(size.width * 0.75, size.height * 0.18),
-    ];
-    for (final pos in positions) {
-      _drawTree(canvas, pos.dx, pos.dy);
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(waterX, waterY, waterW, waterH),
+      const Radius.circular(8),
+    );
+    canvas.drawRRect(rrect, waterPaint);
+
+    final wavePaint = Paint()
+      ..color = const Color(0xFF64B5F6)
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+    for (int i = 0; i < 3; i++) {
+      final wy = waterY + 8 + i * (waterH / 4);
+      final wavePath = Path();
+      for (double wx = waterX + 4; wx < waterX + waterW - 4; wx += 12) {
+        final yOff = 2 * sin((wx + tick * 100) * 0.1 + i);
+        if (wx == waterX + 4) {
+          wavePath.moveTo(wx, wy + yOff);
+        } else {
+          wavePath.lineTo(wx, wy + yOff);
+        }
+      }
+      canvas.drawPath(wavePath, wavePaint);
     }
   }
 
-  void _drawTree(Canvas canvas, double x, double y) {
-    canvas.drawRect(
-      Rect.fromCenter(center: Offset(x, y + 10), width: 6, height: 16),
-      Paint()..color = const Color(0xFF795548),
-    );
-    final foliage = Paint()..color = const Color(0xFF2E7D32);
-    canvas.drawCircle(Offset(x, y - 4), 14, foliage);
-    canvas.drawCircle(Offset(x - 8, y + 2), 10, foliage);
-    canvas.drawCircle(Offset(x + 8, y + 2), 10, foliage);
-  }
+  void _drawPaths(Canvas canvas, Size size, double groundY) {
+    final pathPaint = Paint()..color = const Color(0xFFD7CCC8);
+    final pathBorder = Paint()..color = const Color(0xFFBCAAA4);
+    final cx = size.width / 2;
+    final pathY = groundY + (size.height - groundY) * 0.45;
+    const pathW = 20.0;
 
-  void _drawHouses(Canvas canvas, Size size) {
-    _drawHouse(canvas, size.width * 0.25, size.height * 0.38, const Color(0xFFEFC9AF));
-    _drawHouse(canvas, size.width * 0.72, size.height * 0.62, const Color(0xFFB3E5FC));
-  }
-
-  void _drawHouse(Canvas canvas, double x, double y, Color wallColor) {
     canvas.drawRect(
-      Rect.fromCenter(center: Offset(x, y + 6), width: 24, height: 18),
-      Paint()..color = wallColor,
+      Rect.fromLTWH(0, pathY - pathW / 2, size.width * 0.7, pathW),
+      pathPaint,
     );
-    final roofPath = Path()
-      ..moveTo(x - 16, y - 2)
-      ..lineTo(x, y - 16)
-      ..lineTo(x + 16, y - 2)
-      ..close();
-    canvas.drawPath(roofPath, Paint()..color = const Color(0xFFD84315));
     canvas.drawRect(
-      Rect.fromCenter(center: Offset(x, y + 8), width: 6, height: 10),
-      Paint()..color = const Color(0xFF795548),
+      Rect.fromLTWH(0, pathY - pathW / 2, size.width * 0.7, 2),
+      pathBorder,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(0, pathY + pathW / 2 - 2, size.width * 0.7, 2),
+      pathBorder,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(cx - pathW / 2, groundY, pathW, size.height - groundY),
+      pathPaint,
     );
   }
 
-  void _drawFlowers(Canvas canvas, Size size) {
+  void _drawGrassDetails(Canvas canvas, Size size, double groundY) {
     final rng = Random(42);
-    final colors = [
-      const Color(0xFFFFEB3B),
-      const Color(0xFFE91E63),
-      const Color(0xFFFF9800),
-      const Color(0xFF9C27B0),
-    ];
-    for (int i = 0; i < 20; i++) {
-      final fx = rng.nextDouble() * size.width;
-      final fy = size.height * 0.2 + rng.nextDouble() * size.height * 0.7;
-      canvas.drawCircle(Offset(fx, fy), 2.5, Paint()..color = colors[i % 4]);
+    final grassBlade = Paint()
+      ..color = const Color(0xFF558B2F)
+      ..strokeWidth = 1.5;
+    for (int i = 0; i < 40; i++) {
+      final gx = rng.nextDouble() * size.width;
+      final gy = groundY + rng.nextDouble() * (size.height - groundY);
+      final sway = 2 * sin(tick * pi * 2 + i * 0.5);
       canvas.drawLine(
-        Offset(fx, fy + 2.5),
-        Offset(fx, fy + 7),
-        Paint()..color = const Color(0xFF4CAF50)..strokeWidth = 1,
+        Offset(gx, gy),
+        Offset(gx + sway, gy - 6 - rng.nextDouble() * 4),
+        grassBlade,
       );
     }
   }
 
-  void _drawDashedLine(Canvas canvas, double x1, double y1, double x2,
-      double y2, SimulationEntry sim) {
+  void _drawPixelTrees(Canvas canvas, Size size, double groundY) {
+    final positions = [
+      Offset(size.width * 0.08, groundY + (size.height - groundY) * 0.15),
+      Offset(size.width * 0.88, groundY + (size.height - groundY) * 0.2),
+      Offset(size.width * 0.12, groundY + (size.height - groundY) * 0.7),
+      Offset(size.width * 0.55, groundY + (size.height - groundY) * 0.12),
+      Offset(size.width * 0.35, groundY + (size.height - groundY) * 0.82),
+    ];
+    for (final pos in positions) {
+      _drawRoundTree(canvas, pos.dx, pos.dy);
+    }
+  }
+
+  void _drawRoundTree(Canvas canvas, double x, double y) {
+    canvas.drawRect(
+      Rect.fromLTWH(x - 3, y + 4, 6, 14),
+      Paint()..color = const Color(0xFF795548),
+    );
+    canvas.drawCircle(Offset(x, y - 6), 14, Paint()..color = const Color(0xFF4CAF50));
+    canvas.drawCircle(Offset(x - 4, y - 9), 8, Paint()..color = const Color(0xFF66BB6A));
+    canvas.drawCircle(Offset(x + 5, y - 2), 7, Paint()..color = const Color(0xFF388E3C));
+  }
+
+  void _drawPixelHouses(Canvas canvas, Size size, double groundY) {
+    _drawPokemonHouse(
+        canvas, size.width * 0.25, groundY + (size.height - groundY) * 0.35, const Color(0xFFEFC9AF));
+    _drawPokemonHouse(
+        canvas, size.width * 0.55, groundY + (size.height - groundY) * 0.65, const Color(0xFFB3E5FC));
+  }
+
+  void _drawPokemonHouse(Canvas canvas, double x, double y, Color wallColor) {
+    canvas.drawRect(Rect.fromLTWH(x - 16, y - 4, 32, 24), Paint()..color = wallColor);
+    canvas.drawRect(Rect.fromLTWH(x - 20, y - 8, 40, 6), Paint()..color = const Color(0xFFD84315));
+    final roofPath = Path()
+      ..moveTo(x - 22, y - 6)
+      ..lineTo(x, y - 24)
+      ..lineTo(x + 22, y - 6)
+      ..close();
+    canvas.drawPath(roofPath, Paint()..color = const Color(0xFFE53935));
+    canvas.drawRect(Rect.fromLTWH(x - 4, y + 4, 8, 16), Paint()..color = const Color(0xFF5D4037));
+    canvas.drawRect(Rect.fromLTWH(x - 14, y - 2, 6, 6), Paint()..color = const Color(0xFF81D4FA));
+    canvas.drawRect(Rect.fromLTWH(x + 8, y - 2, 6, 6), Paint()..color = const Color(0xFF81D4FA));
+    canvas.drawRect(Rect.fromLTWH(x - 12, y, 2, 2), Paint()..color = Colors.white.withValues(alpha: 0.6));
+  }
+
+  void _drawPixelFlowers(Canvas canvas, Size size, double groundY) {
+    final rng = Random(123);
+    const colors = [
+      Color(0xFFFFEB3B),
+      Color(0xFFE91E63),
+      Color(0xFFFF9800),
+      Color(0xFFCE93D8),
+    ];
+    for (int i = 0; i < 25; i++) {
+      final fx = rng.nextDouble() * size.width;
+      final fy = groundY + rng.nextDouble() * (size.height - groundY);
+      final sway = 1.5 * sin(tick * pi * 2 + i * 0.7);
+      canvas.drawLine(
+        Offset(fx, fy),
+        Offset(fx + sway, fy + 5),
+        Paint()..color = const Color(0xFF4CAF50)..strokeWidth = 1.5,
+      );
+      canvas.drawCircle(Offset(fx + sway, fy - 1), 3, Paint()..color = colors[i % 4]);
+      canvas.drawCircle(Offset(fx + sway, fy - 1), 1.2, Paint()..color = Colors.white);
+    }
+  }
+
+  void _drawPlayerCharacter(Canvas canvas, double x, double y, double stepPhase) {
+    final legOff = sin(stepPhase) * 3;
+
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset(x, y + 22), width: 20, height: 8),
+      Paint()..color = Colors.black.withValues(alpha: 0.1),
+    );
+
+    final skinPaint = Paint()..color = const Color(0xFFFFCC80);
+    final hairPaint = Paint()..color = const Color(0xFF5D4037);
+    final shirtPaint = Paint()..color = const Color(0xFF1B76F2);
+    final pantsPaint = Paint()..color = const Color(0xFF1A237E);
+    final shoePaint = Paint()..color = const Color(0xFFD32F2F);
+
+    canvas.drawRect(Rect.fromLTWH(x - 3, y + 12 + legOff, 4, 8), pantsPaint);
+    canvas.drawRect(Rect.fromLTWH(x - 1, y + 12 - legOff, 4, 8), pantsPaint);
+    canvas.drawRect(Rect.fromLTWH(x - 3, y + 19 + legOff, 5, 3), shoePaint);
+    canvas.drawRect(Rect.fromLTWH(x - 1, y + 19 - legOff, 5, 3), shoePaint);
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(x - 8, y + 2, 16, 12),
+        const Radius.circular(3),
+      ),
+      shirtPaint,
+    );
+
+    canvas.drawOval(Rect.fromLTWH(x - 6, y - 8, 12, 10), skinPaint);
+    canvas.drawRect(Rect.fromLTWH(x - 6, y - 12, 12, 4), hairPaint);
+
+    canvas.drawOval(Rect.fromLTWH(x - 5, y - 6, 5, 5), Paint()..color = Colors.white);
+    canvas.drawOval(Rect.fromLTWH(x + 0, y - 6, 5, 5), Paint()..color = Colors.white);
+    canvas.drawOval(Rect.fromLTWH(x - 4, y - 5, 3, 3), Paint()..color = Colors.black);
+    canvas.drawOval(Rect.fromLTWH(x + 1, y - 5, 3, 3), Paint()..color = Colors.black);
+
+    canvas.drawPath(
+      Path()
+        ..moveTo(x - 2, y)
+        ..quadraticBezierTo(x, y + 3, x + 2, y),
+      Paint()
+        ..color = const Color(0xFFE65100)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..strokeCap = StrokeCap.round,
+    );
+
+    canvas.drawRect(Rect.fromLTWH(x - 4, y - 18, 8, 5), Paint()..color = const Color(0xFF1565C0));
+    canvas.drawRect(Rect.fromLTWH(x - 2, y - 22, 4, 5), Paint()..color = Colors.white);
+    canvas.drawCircle(Offset(x, y - 24), 3, Paint()..color = const Color(0xFFFFC107));
+
+    final tp = TextPainter(
+      text: const TextSpan(
+        text: 'Você',
+        style: TextStyle(color: Color(0xFF1A1A2E), fontSize: 10, fontWeight: FontWeight.w700),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    final bgRect = RRect.fromRectAndRadius(
+      Rect.fromCenter(
+        center: Offset(x, y + 30),
+        width: tp.width + 10,
+        height: tp.height + 4,
+      ),
+      const Radius.circular(6),
+    );
+    canvas.drawRRect(bgRect, Paint()..color = Colors.white.withValues(alpha: 0.9));
+    tp.paint(canvas, Offset(x - tp.width / 2, y + 28));
+  }
+
+  void _drawSimCharacter(Canvas canvas, double x, double y, SimulationEntry sim) {
+    final isChatting = sim.status == SimulationStatus.chatting;
+    final isActive = isChatting && sim.activeAgentId != null;
+    final compat = sim.compatibility ?? 0;
+
+    final color = isChatting
+        ? const Color(0xFF42A5F5)
+        : compat > 0.6
+            ? const Color(0xFFEF5350)
+            : const Color(0xFF9E9E9E);
+
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset(x, y + 20), width: 16, height: 6),
+      Paint()..color = Colors.black.withValues(alpha: 0.08),
+    );
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(x - 6, y + 2, 12, 10),
+        const Radius.circular(3),
+      ),
+      Paint()..color = color,
+    );
+    canvas.drawOval(
+      Rect.fromLTWH(x - 5, y - 8, 10, 10),
+      Paint()..color = color,
+    );
+    canvas.drawOval(Rect.fromLTWH(x - 3, y - 5, 3, 3), Paint()..color = Colors.white);
+    canvas.drawOval(Rect.fromLTWH(x + 0, y - 5, 3, 3), Paint()..color = Colors.white);
+
+    if (isActive) {
+      final pulse = 0.15 + 0.15 * sin(tick * pi * 4);
+      canvas.drawCircle(
+        Offset(x, y), 22,
+        Paint()..color = color.withValues(alpha: pulse),
+      );
+    }
+
+    if (isChatting) {
+      _drawChatBubble(canvas, x, y - 24, tick);
+    } else {
+      _drawCompatBadge(canvas, x, y - 22, compat);
+    }
+  }
+
+  void _drawChatBubble(Canvas canvas, double x, double y, double t) {
+    final bubbleY = y - 3 * sin(t * pi * 2);
+    final bgPaint = Paint()..color = Colors.white;
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset(x, bubbleY), width: 24, height: 16),
+      const Radius.circular(8),
+    );
+    canvas.drawRRect(rrect, bgPaint);
+    canvas.drawPath(
+      Path()
+        ..moveTo(x - 3, bubbleY + 7)
+        ..lineTo(x, bubbleY + 12)
+        ..lineTo(x + 3, bubbleY + 7)
+        ..close(),
+      bgPaint,
+    );
+    final dotPaint = Paint()..color = const Color(0xFF9CA3AF);
+    for (int i = 0; i < 3; i++) {
+      final dx = x - 5 + i * 5.0;
+      final bounce = sin((t * pi * 2) + i * 0.8) * 1.5;
+      canvas.drawCircle(Offset(dx, bubbleY + bounce), 1.5, dotPaint);
+    }
+  }
+
+  void _drawCompatBadge(Canvas canvas, double x, double y, double compat) {
+    final pct = '${(compat * 100).toInt()}%';
+    if (compat > 0.6) {
+      final path = Path()
+        ..moveTo(x, y + 4)
+        ..cubicTo(x - 8, y - 3, x - 13, y + 4, x, y + 12)
+        ..cubicTo(x + 13, y + 4, x + 8, y - 3, x, y + 4);
+      canvas.drawPath(path, Paint()..color = const Color(0xFFEF5350));
+      final tp = TextPainter(
+        text: TextSpan(text: pct, style: const TextStyle(color: Colors.white, fontSize: 7, fontWeight: FontWeight.w700)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(x - tp.width / 2, y + 10));
+    } else {
+      final tp = TextPainter(
+        text: TextSpan(text: pct, style: const TextStyle(color: Color(0xFF9E9E9E), fontSize: 8, fontWeight: FontWeight.w600)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(x - tp.width / 2, y - 2));
+    }
+  }
+
+  void _drawDashedLine(Canvas canvas, double x1, double y1, double x2, double y2, SimulationEntry sim) {
     final paint = Paint()
       ..strokeWidth = 1.5
       ..strokeCap = StrokeCap.round;
 
     if (sim.status == SimulationStatus.chatting) {
-      paint.color = const Color(0xFF42A5F5).withValues(alpha: 0.3);
+      paint.color = const Color(0xFF42A5F5).withValues(alpha: 0.25);
     } else {
       final compat = sim.compatibility ?? 0;
-      paint.color = (compat > 0.6
-              ? const Color(0xFFEF5350)
-              : const Color(0xFF9E9E9E))
-          .withValues(alpha: 0.25);
+      paint.color = (compat > 0.6 ? const Color(0xFFEF5350) : const Color(0xFF9E9E9E)).withValues(alpha: 0.2);
     }
 
-    final dashLen = 6.0;
-    final gapLen = 4.0;
-    final total = dashLen + gapLen;
+    const dashLen = 5.0;
+    const gapLen = 4.0;
     final dx = x2 - x1;
     final dy = y2 - y1;
     final dist = sqrt(dx * dx + dy * dy);
-    final steps = (dist / total).floor();
-
+    final steps = (dist / (dashLen + gapLen)).floor();
     for (int i = 0; i < steps; i++) {
-      final startFrac = (i * total) / dist;
-      final endFrac = ((i * total) + dashLen) / dist;
+      final startFrac = (i * (dashLen + gapLen)) / dist;
+      final endFrac = ((i * (dashLen + gapLen)) + dashLen) / dist;
       if (endFrac > 1) break;
       canvas.drawLine(
         Offset(x1 + dx * startFrac, y1 + dy * startFrac),
@@ -238,174 +505,6 @@ class _WorldPainter extends CustomPainter {
     }
   }
 
-  void _drawSimCharacter(
-      Canvas canvas, double x, double y, SimulationEntry sim) {
-    final isChatting = sim.status == SimulationStatus.chatting;
-    final isActive = isChatting && sim.activeAgentId != null;
-    final compat = sim.compatibility ?? 0;
-    final color = isChatting
-        ? const Color(0xFF42A5F5)
-        : compat > 0.6
-            ? const Color(0xFFEF5350)
-            : const Color(0xFF9E9E9E);
-
-    _drawCharacter(canvas, x, y, color, '', radius: 13);
-
-    if (isActive) {
-      final pulse = 0.3 + 0.3 * sin(tick * pi * 4);
-      canvas.drawCircle(
-        Offset(x, y),
-        20,
-        Paint()..color = const Color(0xFF42A5F5).withValues(alpha: pulse),
-      );
-    }
-
-    if (isChatting) {
-      _drawChatBubble(canvas, x, y - 28, tick);
-    } else {
-      _drawCompatBadge(canvas, x, y - 28, compat);
-    }
-  }
-
-  void _drawCharacter(Canvas canvas, double x, double y, Color color,
-      String label, {double radius = 14, bool showCrown = false}) {
-    canvas.drawOval(
-      Rect.fromCenter(
-          center: Offset(x, y + radius + 6),
-          width: radius * 1.6,
-          height: radius),
-      Paint()..color = Colors.black.withValues(alpha: 0.08),
-    );
-
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(
-            center: Offset(x, y + radius * 0.5),
-            width: radius * 1.2,
-            height: radius * 1.4),
-        Radius.circular(radius * 0.3),
-      ),
-      Paint()..color = color,
-    );
-
-    canvas.drawCircle(
-        Offset(x, y - radius * 0.4), radius * 0.65, Paint()..color = color);
-
-    canvas.drawCircle(
-        Offset(x - radius * 0.2, y - radius * 0.5),
-        1.5,
-        Paint()..color = Colors.white);
-    canvas.drawCircle(
-        Offset(x + radius * 0.2, y - radius * 0.5),
-        1.5,
-        Paint()..color = Colors.white);
-
-    final smilePath = Path()
-      ..moveTo(x - radius * 0.2, y - radius * 0.2)
-      ..quadraticBezierTo(
-          x, y + radius * 0.1, x + radius * 0.2, y - radius * 0.2);
-    canvas.drawPath(
-      smilePath,
-      Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2
-        ..strokeCap = StrokeCap.round,
-    );
-
-    if (showCrown) {
-      final cy = y - radius * 1.2;
-      final crownPath = Path()
-        ..moveTo(x - 8, cy + 4)
-        ..lineTo(x - 6, cy - 3)
-        ..lineTo(x - 2, cy + 1)
-        ..lineTo(x, cy - 5)
-        ..lineTo(x + 2, cy + 1)
-        ..lineTo(x + 6, cy - 3)
-        ..lineTo(x + 8, cy + 4)
-        ..close();
-      canvas.drawPath(crownPath, Paint()..color = const Color(0xFFFFC107));
-    }
-
-    if (label.isNotEmpty) {
-      final tp = TextPainter(
-        text: TextSpan(
-          text: label,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.9),
-            fontSize: 9,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      final bgRect = RRect.fromRectAndRadius(
-        Rect.fromCenter(
-          center: Offset(x, y + radius * 1.6 + 6),
-          width: tp.width + 8,
-          height: tp.height + 4,
-        ),
-        const Radius.circular(4),
-      );
-      canvas.drawRRect(
-          bgRect, Paint()..color = const Color(0xFF37474F).withValues(alpha: 0.7));
-      tp.paint(canvas, Offset(x - tp.width / 2, y + radius * 1.6 + 4));
-    }
-  }
-
-  void _drawChatBubble(Canvas canvas, double x, double y, double t) {
-    final bubbleY = y - 3 * sin(t * pi * 2);
-    final bgPaint = Paint()..color = Colors.white;
-    final rrect = RRect.fromRectAndRadius(
-      Rect.fromCenter(center: Offset(x, bubbleY), width: 26, height: 18),
-      const Radius.circular(8),
-    );
-    canvas.drawRRect(rrect, bgPaint);
-
-    final tailPath = Path()
-      ..moveTo(x - 3, bubbleY + 8)
-      ..lineTo(x, bubbleY + 14)
-      ..lineTo(x + 3, bubbleY + 8)
-      ..close();
-    canvas.drawPath(tailPath, bgPaint);
-
-    final dotPaint = Paint()..color = const Color(0xFF90A4AE);
-    for (int i = 0; i < 3; i++) {
-      final dx = x - 6 + i * 6.0;
-      final bounce = sin((t * pi * 2) + i * 0.8) * 1.5;
-      canvas.drawCircle(Offset(dx, bubbleY + bounce), 1.8, dotPaint);
-    }
-  }
-
-  void _drawCompatBadge(Canvas canvas, double x, double y, double compat) {
-    if (compat > 0.6) {
-      final path = Path()
-        ..moveTo(x, y + 4)
-        ..cubicTo(x - 8, y - 4, x - 14, y + 4, x, y + 12)
-        ..cubicTo(x + 14, y + 4, x + 8, y - 4, x, y + 4);
-      canvas.drawPath(path, Paint()..color = const Color(0xFFEF5350));
-      final tp = TextPainter(
-        text: TextSpan(
-          text: '${(compat * 100).toInt()}%',
-          style: const TextStyle(
-              color: Colors.white, fontSize: 8, fontWeight: FontWeight.w700),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      tp.paint(canvas, Offset(x - tp.width / 2, y + 10));
-    } else {
-      final tp = TextPainter(
-        text: TextSpan(
-          text: '${(compat * 100).toInt()}%',
-          style: const TextStyle(
-              color: Color(0xFF757575), fontSize: 8, fontWeight: FontWeight.w600),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      tp.paint(canvas, Offset(x - tp.width / 2, y - 2));
-    }
-  }
-
   @override
-  bool shouldRepaint(_WorldPainter old) => true;
+  bool shouldRepaint(_PokemonWorldPainter old) => true;
 }

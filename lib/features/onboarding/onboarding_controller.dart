@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tinyworld_app/core/api/rest_client.dart';
 import 'package:tinyworld_app/core/storage/local_storage.dart';
@@ -5,6 +6,7 @@ import 'package:tinyworld_app/core/storage/local_storage.dart';
 class OnboardingState {
   final int currentStep;
   final String? userId;
+  final String? userName;
   final Map<String, dynamic>? appearance;
   final List<String> hobbies;
   final String? avatarUrl;
@@ -14,6 +16,7 @@ class OnboardingState {
   const OnboardingState({
     this.currentStep = 1,
     this.userId,
+    this.userName,
     this.appearance,
     this.hobbies = const [],
     this.avatarUrl,
@@ -24,6 +27,7 @@ class OnboardingState {
   OnboardingState copyWith({
     int? currentStep,
     String? userId,
+    String? userName,
     Map<String, dynamic>? appearance,
     List<String>? hobbies,
     String? avatarUrl,
@@ -33,6 +37,7 @@ class OnboardingState {
       OnboardingState(
         currentStep: currentStep ?? this.currentStep,
         userId: userId ?? this.userId,
+        userName: userName ?? this.userName,
         appearance: appearance ?? this.appearance,
         hobbies: hobbies ?? this.hobbies,
         avatarUrl: avatarUrl ?? this.avatarUrl,
@@ -43,13 +48,24 @@ class OnboardingState {
 
 class OnboardingController extends StateNotifier<OnboardingState> {
   OnboardingController() : super(const OnboardingState()) {
-    _restoreSession();
+    _init();
   }
 
-  Future<void> _restoreSession() async {
+  Future<void> _init() async {
+    await _refreshToken();
     final savedId = await localStorage.getUserId();
     if (savedId != null && state.userId == null) {
       state = state.copyWith(userId: savedId);
+    }
+  }
+
+  Future<void> _refreshToken() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final token = await user.getIdToken(true);
+      if (token != null) {
+        await localStorage.saveIdToken(token);
+      }
     }
   }
 
@@ -59,17 +75,21 @@ class OnboardingController extends StateNotifier<OnboardingState> {
     required String name,
     required String birthDate,
     required String sexualOrientation,
+    String gender = '',
   }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
+      await _refreshToken();
       final resp = await apiClient.post('/auth/register', data: {
         'name': name,
         'birth_date': birthDate,
         'sexual_orientation': sexualOrientation,
+        'gender': gender,
       });
       final userId = resp.data['user_id'] as String;
       await localStorage.saveUserId(userId);
-      state = state.copyWith(userId: userId, isLoading: false, currentStep: 2);
+      state = state.copyWith(
+          userId: userId, userName: name, isLoading: false, currentStep: 2);
       return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -83,8 +103,8 @@ class OnboardingController extends StateNotifier<OnboardingState> {
   Future<bool> saveAvatar(String style) async {
     state = state.copyWith(isLoading: true);
     try {
+      await _refreshToken();
       final resp = await apiClient.post('/onboarding/avatar', data: {
-        'user_id': state.userId,
         'style': style,
         'appearance': state.appearance,
       });
@@ -103,11 +123,12 @@ class OnboardingController extends StateNotifier<OnboardingState> {
   Future<bool> saveHobbies(List<String> hobbies) async {
     state = state.copyWith(isLoading: true);
     try {
+      await _refreshToken();
       await apiClient.post('/onboarding/hobbies', data: {
-        'user_id': state.userId,
         'hobbies': hobbies,
       });
-      state = state.copyWith(hobbies: hobbies, isLoading: false, currentStep: 4);
+      state =
+          state.copyWith(hobbies: hobbies, isLoading: false, currentStep: 4);
       return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -117,8 +138,8 @@ class OnboardingController extends StateNotifier<OnboardingState> {
 
   Future<bool> completeOnboarding() async {
     try {
-      await apiClient.patch('/onboarding/complete',
-          queryParams: {'user_id': state.userId});
+      await _refreshToken();
+      await apiClient.patch('/onboarding/complete');
       await localStorage.setOnboardingDone(true);
       return true;
     } catch (_) {

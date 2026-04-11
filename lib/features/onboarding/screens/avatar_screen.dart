@@ -21,8 +21,7 @@ class _AvatarScreenState extends ConsumerState<AvatarScreen> {
     super.initState();
     final data = widget.extra as Map<String, dynamic>?;
     if (data != null) {
-      _variations =
-          List<Map<String, dynamic>>.from(data['variations'] as List);
+      _variations = List<Map<String, dynamic>>.from(data['variations'] as List);
       if (_variations.isNotEmpty) {
         _selectedStyle = _variations.first['style'] as String;
       }
@@ -40,7 +39,8 @@ class _AvatarScreenState extends ConsumerState<AvatarScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(onboardingControllerProvider);
     return OnboardingScaffold(
-      step: 3,
+      step: 6,
+      totalSteps: 9,
       title: 'Seu avatar',
       subtitle: 'Escolha como você vai aparecer no mundo.',
       bottom: OnboardingButton(
@@ -49,11 +49,10 @@ class _AvatarScreenState extends ConsumerState<AvatarScreen> {
         child: const Text('Usar este avatar'),
       ),
       child: _variations.isEmpty
-          ? Center(
+          ? const Center(
               child: Text(
                 'Nenhuma variação disponível',
-                style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.3), fontSize: 14),
+                style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
               ),
             )
           : Column(
@@ -79,19 +78,20 @@ class _AvatarScreenState extends ConsumerState<AvatarScreen> {
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(20),
                             color: isSelected
-                                ? const Color(0xFF6C63FF).withValues(alpha: 0.15)
-                                : Colors.white.withValues(alpha: 0.04),
+                                ? const Color(0xFF1B76F2)
+                                    .withValues(alpha: 0.08)
+                                : const Color(0xFFF5F7FA),
                             border: Border.all(
                               color: isSelected
-                                  ? const Color(0xFF6C63FF)
-                                  : Colors.white.withValues(alpha: 0.08),
+                                  ? const Color(0xFF1B76F2)
+                                  : const Color(0xFFE5E7EB),
                               width: isSelected ? 2 : 1,
                             ),
                             boxShadow: isSelected
                                 ? [
                                     BoxShadow(
-                                      color: const Color(0xFF6C63FF)
-                                          .withValues(alpha: 0.3),
+                                      color: const Color(0xFF1B76F2)
+                                          .withValues(alpha: 0.15),
                                       blurRadius: 16,
                                     )
                                   ]
@@ -105,8 +105,8 @@ class _AvatarScreenState extends ConsumerState<AvatarScreen> {
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: isSelected
-                                      ? const Color(0xFF6C63FF)
-                                          .withValues(alpha: 0.1)
+                                      ? const Color(0xFF1B76F2)
+                                          .withValues(alpha: 0.08)
                                       : null,
                                 ),
                                 child: AvatarPreview(
@@ -119,8 +119,8 @@ class _AvatarScreenState extends ConsumerState<AvatarScreen> {
                                 style[0].toUpperCase() + style.substring(1),
                                 style: TextStyle(
                                   color: isSelected
-                                      ? Colors.white
-                                      : Colors.white54,
+                                      ? const Color(0xFF1B76F2)
+                                      : const Color(0xFF6B7280),
                                   fontWeight: FontWeight.w600,
                                   fontSize: 13,
                                 ),
@@ -144,8 +144,8 @@ class _AvatarScreenState extends ConsumerState<AvatarScreen> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(state.error!,
-                          style:
-                              const TextStyle(color: Colors.redAccent, fontSize: 13)),
+                          style: TextStyle(
+                              color: Colors.red.shade700, fontSize: 13)),
                     ),
                   ),
               ],

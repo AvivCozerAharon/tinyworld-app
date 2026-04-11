@@ -45,15 +45,6 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
       initialDate: DateTime(2000),
       firstDate: DateTime(1950),
       lastDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
-      builder: (_, child) => Theme(
-        data: ThemeData.dark().copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: Color(0xFF6C63FF),
-            surface: Color(0xFF16213E),
-          ),
-        ),
-        child: child!,
-      ),
     );
     if (d != null) setState(() => _birthDate = d);
   }
@@ -99,14 +90,15 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
               onTap: _pickDate,
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.06),
+                  color: const Color(0xFFF5F7FA),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: _birthDate != null
-                        ? const Color(0xFF6C63FF).withValues(alpha: 0.4)
-                        : Colors.white.withValues(alpha: 0.08),
+                        ? const Color(0xFF1B76F2).withValues(alpha: 0.3)
+                        : Colors.transparent,
                   ),
                 ),
                 child: Row(
@@ -115,10 +107,10 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          const Text(
                             'DATA DE NASCIMENTO',
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.4),
+                              color: Color(0xFF6B7280),
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                               letterSpacing: 0.8,
@@ -131,8 +123,8 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
                                 : '${_birthDate!.day.toString().padLeft(2, '0')}/${_birthDate!.month.toString().padLeft(2, '0')}/${_birthDate!.year}',
                             style: TextStyle(
                               color: _birthDate != null
-                                  ? Colors.white
-                                  : Colors.white.withValues(alpha: 0.25),
+                                  ? const Color(0xFF1A1A2E)
+                                  : const Color(0xFFC4C9D0),
                               fontSize: 16,
                             ),
                           ),
@@ -142,19 +134,19 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
                     Icon(Icons.calendar_today,
                         size: 20,
                         color: _birthDate != null
-                            ? const Color(0xFF6C63FF)
-                            : Colors.white38),
+                            ? const Color(0xFF1B76F2)
+                            : const Color(0xFFC4C9D0)),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 24),
-            Align(
+            const Align(
               alignment: Alignment.centerLeft,
               child: Text(
                 'ORIENTAÇÃO SEXUAL',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.4),
+                  color: Color(0xFF6B7280),
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.8,
@@ -175,19 +167,21 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
                         horizontal: 16, vertical: 10),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? const Color(0xFF6C63FF)
-                          : Colors.white.withValues(alpha: 0.06),
+                          ? const Color(0xFF1B76F2)
+                          : const Color(0xFFF5F7FA),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: isSelected
-                            ? const Color(0xFF8B83FF)
-                            : Colors.white.withValues(alpha: 0.08),
+                            ? const Color(0xFF1B76F2)
+                            : const Color(0xFFE5E7EB),
                       ),
                     ),
                     child: Text(
                       o.$1,
                       style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.white54,
+                        color: isSelected
+                            ? Colors.white
+                            : const Color(0xFF6B7280),
                         fontWeight:
                             isSelected ? FontWeight.w600 : FontWeight.w400,
                         fontSize: 13,
@@ -203,12 +197,12 @@ class _BasicInfoScreenState extends ConsumerState<BasicInfoScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.1),
+                  color: Colors.red.shade50,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   state.error!,
-                  style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+                  style: TextStyle(color: Colors.red.shade700, fontSize: 13),
                 ),
               ),
             ],

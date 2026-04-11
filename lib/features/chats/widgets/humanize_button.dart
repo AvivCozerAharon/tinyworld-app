@@ -13,9 +13,9 @@ class HumanizeButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return switch (currentState) {
       'humanized' => const SizedBox.shrink(),
-      'humanize_pending_sent' => FilledButton.tonal(
+      'humanize_pending_sent' => const FilledButton.tonal(
           onPressed: null,
-          child: const Text('Aguardando resposta...'),
+          child: Text('Aguardando resposta...'),
         ),
       'humanize_pending_received' => FilledButton(
           onPressed: () async {

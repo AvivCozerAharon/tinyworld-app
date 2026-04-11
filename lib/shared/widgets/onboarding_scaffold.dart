@@ -25,26 +25,18 @@ class OnboardingScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF0F3460)],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(context),
-              Expanded(child: child),
-              if (bottom != null)
-                Container(
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                  child: bottom,
-                ),
-            ],
-          ),
+      backgroundColor: const Color(0xFFFAFDFB),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(context),
+            Expanded(child: child),
+            if (bottom != null)
+              Container(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                child: bottom,
+              ),
+          ],
         ),
       ),
     );
@@ -62,19 +54,26 @@ class OnboardingScaffold extends StatelessWidget {
                   onPressed: onBack ?? () => Navigator.maybePop(context),
                   icon: const Icon(Icons.arrow_back_ios_new, size: 18),
                   style: IconButton.styleFrom(
-                    foregroundColor: Colors.white70,
+                    foregroundColor: const Color(0xFF1A1A2E),
                   ),
                 )
               else
                 const SizedBox(width: 48),
               const Spacer(),
-              Text(
-                '$step / $totalSteps',
-                style: const TextStyle(
-                  color: Colors.white38,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.2,
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1B76F2).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '$step / $totalSteps',
+                  style: const TextStyle(
+                    color: Color(0xFF1B76F2),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -90,13 +89,14 @@ class OnboardingScaffold extends StatelessWidget {
                   margin: EdgeInsets.only(left: i > 0 ? 4 : 0, right: 4),
                   decoration: BoxDecoration(
                     color: isActive
-                        ? const Color(0xFF6C63FF)
-                        : Colors.white10,
+                        ? const Color(0xFF1B76F2)
+                        : const Color(0xFFE5E7EB),
                     borderRadius: BorderRadius.circular(2),
                     boxShadow: isCurrent
                         ? [
                             BoxShadow(
-                              color: const Color(0xFF6C63FF).withValues(alpha: 0.5),
+                              color:
+                                  const Color(0xFF1B76F2).withValues(alpha: 0.3),
                               blurRadius: 6,
                             )
                           ]
@@ -113,10 +113,11 @@ class OnboardingScaffold extends StatelessWidget {
               child: Text(
                 title!,
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: Color(0xFF1A1A2E),
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
                   height: 1.2,
+                  letterSpacing: -0.5,
                 ),
               ),
             ),
@@ -127,8 +128,8 @@ class OnboardingScaffold extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Text(
                 subtitle!,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
+                style: const TextStyle(
+                  color: Color(0xFF6B7280),
                   fontSize: 14,
                   height: 1.4,
                 ),
@@ -177,11 +178,11 @@ class _OnboardingButtonState extends State<OnboardingButton> {
             borderRadius: BorderRadius.circular(14),
             gradient: widget.onPressed != null
                 ? const LinearGradient(
-                    colors: [Color(0xFF6C63FF), Color(0xFF8B83FF)],
+                    colors: [Color(0xFF1B76F2), Color(0xFF3B82F6)],
                   )
                 : null,
             color: widget.onPressed == null
-                ? const Color(0xFF6C63FF).withValues(alpha: 0.3)
+                ? const Color(0xFFE5E7EB)
                 : null,
           ),
           child: Material(
@@ -200,8 +201,10 @@ class _OnboardingButtonState extends State<OnboardingButton> {
                         ),
                       )
                     : DefaultTextStyle(
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: widget.onPressed != null
+                              ? Colors.white
+                              : const Color(0xFF9CA3AF),
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.3,
@@ -248,7 +251,7 @@ class OnboardingInput extends StatelessWidget {
           Text(
             label!,
             style: const TextStyle(
-              color: Colors.white54,
+              color: Color(0xFF6B7280),
               fontSize: 12,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.8,
@@ -263,15 +266,15 @@ class OnboardingInput extends StatelessWidget {
           keyboardType: keyboardType,
           onSubmitted: onSubmitted,
           style: const TextStyle(
-            color: Colors.white,
+            color: Color(0xFF1A1A2E),
             fontSize: 16,
           ),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.25)),
+            hintStyle: const TextStyle(color: Color(0xFFC4C9D0)),
             suffixIcon: suffixIcon,
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.06),
+            fillColor: const Color(0xFFF5F7FA),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
@@ -280,12 +283,12 @@ class OnboardingInput extends StatelessWidget {
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide:
-                  BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+              borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF6C63FF), width: 1.5),
+              borderSide:
+                  const BorderSide(color: Color(0xFF1B76F2), width: 1.5),
             ),
           ),
         ),

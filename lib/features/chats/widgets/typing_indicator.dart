@@ -36,8 +36,8 @@ class _TypingIndicatorState extends State<TypingIndicator>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: List.generate(3, (i) {
-        return AnimatedBuilder(
-          animation: _ctrl,
+        return ListenableBuilder(
+          listenable: _ctrl,
           builder: (_, __) {
             final phase = (_ctrl.value * 3 + i) % 1.0;
             final bounce = (phase < 0.5)
@@ -51,11 +51,11 @@ class _TypingIndicatorState extends State<TypingIndicator>
                 width: widget.dotSize,
                 height: widget.dotSize,
                 decoration: BoxDecoration(
-                  color: Color.fromRGBO(
-                    color.red.toInt(),
-                    color.green.toInt(),
-                    color.blue.toInt(),
-                    0.4 + bounce * 0.6,
+                  color: Color.fromARGB(
+                    (0.4 + bounce * 0.6).clamp(0.0, 1.0) ~/ 1 * 255,
+                    (color.r * 255.0).round().clamp(0, 255),
+                    (color.g * 255.0).round().clamp(0, 255),
+                    (color.b * 255.0).round().clamp(0, 255),
                   ),
                   shape: BoxShape.circle,
                 ),

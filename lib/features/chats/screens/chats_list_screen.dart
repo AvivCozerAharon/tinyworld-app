@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:tinyworld_app/core/api/rest_client.dart';
 import 'package:tinyworld_app/features/chats/chats_controller.dart';
 import 'package:tinyworld_app/features/chats/widgets/chat_list_item.dart';
+import 'package:tinyworld_app/shared/widgets/app_animations.dart';
 
 class ChatsListScreen extends ConsumerStatefulWidget {
   const ChatsListScreen({super.key});
@@ -47,21 +48,49 @@ class _ChatsListScreenState extends ConsumerState<ChatsListScreen> {
       appBar: AppBar(title: const Text('Conexões')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showSimulateDialog,
-        icon: const Icon(Icons.bolt),
-        label: const Text('Simular'),
+        backgroundColor: const Color(0xFF1B76F2),
+        icon: const Icon(Icons.bolt, color: Colors.white),
+        label: const Text('Simular', style: TextStyle(color: Colors.white)),
       ),
       body: state.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF1B76F2)))
           : state.chats.isEmpty
-              ? const Center(
-                  child: Text('Nenhuma simulação ainda. Use o botão abaixo!'))
-              : ListView.separated(
-                  itemCount: state.chats.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (_, i) => ChatListItem(
-                    chat: state.chats[i],
-                    onTap: () =>
-                        context.go('/chats/${state.chats[i].simId}'),
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.chat_bubble_outline,
+                          size: 64, color: Colors.grey.shade300),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Nenhuma simulação ainda',
+                        style: TextStyle(
+                          color: Colors.grey.shade500,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Use o mapa para encontrar conexões!',
+                        style: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  color: const Color(0xFF1B76F2),
+                  onRefresh: () => ref.read(chatsControllerProvider.notifier).loadChats(),
+                  child: StaggeredListView(
+                    itemCount: state.chats.length,
+                    itemBuilder: (_, i) => ChatListItem(
+                      chat: state.chats[i],
+                      onTap: () =>
+                          context.go('/chats/${state.chats[i].simId}'),
+                    ),
                   ),
                 ),
     );

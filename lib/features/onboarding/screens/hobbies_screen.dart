@@ -28,7 +28,8 @@ class _HobbiesScreenState extends ConsumerState<HobbiesScreen> {
     final count = _selected.length;
 
     return OnboardingScaffold(
-      step: 4,
+      step: 7,
+      totalSteps: 9,
       title: 'Seus interesses',
       subtitle: 'Escolha pelo menos 3 hobbies para personalizar suas conexões.',
       bottom: Column(
@@ -42,16 +43,16 @@ class _HobbiesScreenState extends ConsumerState<HobbiesScreen> {
                   '$count selecionado${count != 1 ? 's' : ''}',
                   style: TextStyle(
                     color: count >= 3
-                        ? const Color(0xFF6C63FF)
-                        : Colors.white38,
+                        ? const Color(0xFF1B76F2)
+                        : const Color(0xFF9CA3AF),
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 const Spacer(),
                 if (count >= 3)
-                  Icon(Icons.check_circle,
-                      size: 18, color: const Color(0xFF6C63FF).withOpacity(0.7)),
+                  const Icon(Icons.check_circle,
+                      size: 18, color: Color(0xFF1B76F2)),
               ],
             ),
           ),

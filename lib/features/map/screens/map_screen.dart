@@ -57,11 +57,24 @@ class _MapScreenState extends ConsumerState<MapScreen>
           Positioned(
             top: 48,
             right: 16,
-            child: IconButton.filled(
-              onPressed: () =>
-                  ref.read(mapControllerProvider.notifier).stopSearch(),
-              icon: const Icon(Icons.stop),
-              tooltip: 'Parar busca',
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: IconButton(
+                onPressed: () =>
+                    ref.read(mapControllerProvider.notifier).stopSearch(),
+                icon: const Icon(Icons.stop, color: Color(0xFF1B76F2)),
+                tooltip: 'Parar busca',
+              ),
             ),
           ),
           if (state.isSearching)
@@ -74,8 +87,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.5),
+                    color: const Color(0xFF1B76F2),
                     borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF1B76F2).withValues(alpha: 0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -104,6 +124,50 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 ),
               ),
             ),
+          if (state.searchDone && completed.isEmpty && active.isEmpty)
+            Positioned.fill(
+              child: Center(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 32),
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.explore_off, size: 48, color: Colors.grey.shade300),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Nenhuma conexão encontrada',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tente novamente mais tarde. Novas pessoas podem aparecer em breve!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 13, color: Colors.grey.shade500, height: 1.4),
+                      ),
+                      const SizedBox(height: 20),
+                      FilledButton.icon(
+                        onPressed: () => ref.read(mapControllerProvider.notifier).startSearch(),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Buscar novamente'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           if (completed.isNotEmpty)
             Positioned(
               bottom: 24,
@@ -126,12 +190,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
                             horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
                           color: compat > 0.6
-                              ? const Color(0xFFEF5350).withValues(alpha: 0.9)
-                              : Colors.white.withValues(alpha: 0.9),
+                              ? const Color(0xFFEF5350)
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
+                              color: Colors.black.withValues(alpha: 0.08),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),

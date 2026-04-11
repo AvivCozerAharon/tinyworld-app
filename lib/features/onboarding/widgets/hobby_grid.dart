@@ -62,13 +62,13 @@ class _HobbyGridState extends State<HobbyGrid> {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: isSelected
-                  ? color.withValues(alpha: 0.2)
-                  : Colors.white.withValues(alpha: 0.04),
+                  ? color.withValues(alpha: 0.12)
+                  : const Color(0xFFF5F7FA),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: isSelected
-                    ? color.withValues(alpha: 0.6)
-                    : Colors.white.withValues(alpha: 0.08),
+                    ? color.withValues(alpha: 0.5)
+                    : const Color(0xFFE5E7EB),
               ),
             ),
             child: Row(
@@ -78,14 +78,16 @@ class _HobbyGridState extends State<HobbyGrid> {
                     size: 18,
                     color: isSelected
                         ? color
-                        : Colors.white.withValues(alpha: 0.35)),
+                        : const Color(0xFF9CA3AF)),
                 const SizedBox(width: 8),
                 Text(
                   name,
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                    color: isSelected ? Colors.white : Colors.white54,
+                    color: isSelected
+                        ? const Color(0xFF1A1A2E)
+                        : const Color(0xFF6B7280),
                   ),
                 ),
               ],

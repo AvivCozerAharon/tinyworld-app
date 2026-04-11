@@ -1,0 +1,180 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:crypto/crypto.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:tinyworld_app/core/storage/local_storage.dart';
+
+class AuthState {
+  final bool isLoading;
+  final String? error;
+  final User? firebaseUser;
+
+  const AuthState({
+    this.isLoading = false,
+    this.error,
+    this.firebaseUser,
+  });
+
+  AuthState copyWith({bool? isLoading, String? error, User? firebaseUser}) =>
+      AuthState(
+        isLoading: isLoading ?? this.isLoading,
+        error: error,
+        firebaseUser: firebaseUser ?? this.firebaseUser,
+      );
+}
+
+class AuthController extends StateNotifier<AuthState> {
+  AuthController() : super(const AuthState()) {
+    _checkExisting();
+  }
+
+  Future<void> _checkExisting() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await _saveToken(user).timeout(const Duration(seconds: 5));
+        state = state.copyWith(firebaseUser: user);
+      }
+    } catch (_) {
+      await signOut();
+    }
+  }
+
+  Future<void> _saveToken(User user) async {
+    final token = await user.getIdToken(true);
+    if (token != null) {
+      await localStorage.saveIdToken(token);
+    }
+  }
+
+  Future<bool> signInWithGoogle() async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        state = state.copyWith(isLoading: false);
+        return false;
+      }
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      final userCred =
+          await FirebaseAuth.instance.signInWithCredential(credential);
+      await _saveToken(userCred.user!);
+      state = state.copyWith(isLoading: false, firebaseUser: userCred.user);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: _friendlyError(e));
+      return false;
+    }
+  }
+
+  Future<bool> signInWithApple() async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final rawNonce = _generateNonce();
+      final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
+
+      final appleCred = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: hashedNonce,
+      );
+
+      final oauthCred = OAuthProvider('apple.com').credential(
+        idToken: appleCred.identityToken,
+        rawNonce: rawNonce,
+      );
+      final userCred =
+          await FirebaseAuth.instance.signInWithCredential(oauthCred);
+      await _saveToken(userCred.user!);
+      state = state.copyWith(isLoading: false, firebaseUser: userCred.user);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: _friendlyError(e));
+      return false;
+    }
+  }
+
+  Future<bool> signInWithEmail(String email, String password) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final userCred = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
+      await _saveToken(userCred.user!);
+      state = state.copyWith(isLoading: false, firebaseUser: userCred.user);
+      return true;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') {
+        return await _signUpWithEmail(email, password);
+      }
+      state = state.copyWith(isLoading: false, error: _friendlyError(e));
+      return false;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: _friendlyError(e));
+      return false;
+    }
+  }
+
+  Future<bool> _signUpWithEmail(String email, String password) async {
+    try {
+      final userCred = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
+      await _saveToken(userCred.user!);
+      state = state.copyWith(isLoading: false, firebaseUser: userCred.user);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: _friendlyError(e));
+      return false;
+    }
+  }
+
+  Future<void> signOut() async {
+    await GoogleSignIn().signOut();
+    await FirebaseAuth.instance.signOut();
+    await localStorage.clearAll();
+    state = const AuthState();
+  }
+
+  String _friendlyError(dynamic e) {
+    if (e is FirebaseAuthException) {
+      switch (e.code) {
+        case 'invalid-email':
+          return 'Email inválido';
+        case 'wrong-password':
+          return 'Senha incorreta';
+        case 'email-already-in-use':
+          return 'Este email já está em uso';
+        case 'weak-password':
+          return 'Senha muito fraca (mínimo 6 caracteres)';
+        case 'user-disabled':
+          return 'Conta desativada';
+        case 'network-request-failed':
+          return 'Sem conexão com a internet';
+        default:
+          return 'Erro ao fazer login. Tente novamente.';
+      }
+    }
+    if (e is SocketException) return 'Sem conexão com a internet';
+    return 'Algo deu errado. Tente novamente.';
+  }
+
+  String _generateNonce([int length = 32]) {
+    const charset =
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+    final random = DateTime.now().millisecondsSinceEpoch;
+    return List.generate(length, (i) => charset[(random + i) % charset.length])
+        .join();
+  }
+}
+
+final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
+  (_) => AuthController(),
+);

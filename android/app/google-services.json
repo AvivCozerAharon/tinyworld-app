@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "896542803435",
+    "project_id": "tinyworld-b872e",
+    "storage_bucket": "tinyworld-b872e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:896542803435:android:f4e401c91dd0253b90c5ae",
+        "android_client_info": {
+          "package_name": "com.tinyworld.tinyworld_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDA2w3XB3pMsGkhumZXUmDq5cowaoGaIy8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

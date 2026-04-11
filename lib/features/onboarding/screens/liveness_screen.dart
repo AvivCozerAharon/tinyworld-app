@@ -147,7 +147,8 @@ class _LivenessScreenState extends ConsumerState<LivenessScreen> {
   Widget build(BuildContext context) {
     final cameraReady = _cam?.value.isInitialized ?? false;
     return OnboardingScaffold(
-      step: 2,
+      step: 5,
+      totalSteps: 9,
       title: 'Verificação',
       subtitle: 'Precisamos confirmar que você é real. Uma selfie basta.',
       child: Column(
@@ -158,10 +159,9 @@ class _LivenessScreenState extends ConsumerState<LivenessScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.04),
+                  color: const Color(0xFFF5F7FA),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.08)),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(24),
@@ -173,25 +173,22 @@ class _LivenessScreenState extends ConsumerState<LivenessScreen> {
                       else
                         Center(
                           child: _cameraFailed
-                              ? Column(
+                              ? const Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(Icons.camera_alt_outlined,
-                                        size: 56,
-                                        color:
-                                            Colors.white.withValues(alpha: 0.2)),
-                                    const SizedBox(height: 12),
+                                        size: 56, color: Color(0xFFD1D5DB)),
+                                    SizedBox(height: 12),
                                     Text(
                                       'Câmera não disponível',
                                       style: TextStyle(
-                                          color: Colors.white
-                                              .withValues(alpha: 0.3),
+                                          color: Color(0xFF9CA3AF),
                                           fontSize: 14),
                                     ),
                                   ],
                                 )
                               : const CircularProgressIndicator(
-                                  color: Color(0xFF6C63FF)),
+                                  color: Color(0xFF1B76F2)),
                         ),
                       if (!_isCapturing)
                         Center(
@@ -201,25 +198,25 @@ class _LivenessScreenState extends ConsumerState<LivenessScreen> {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(80),
                               border: Border.all(
-                                  color:
-                                      Colors.white.withValues(alpha: 0.25),
+                                  color: const Color(0xFF1B76F2)
+                                      .withValues(alpha: 0.3),
                                   width: 2),
                             ),
                           ),
                         ),
                       if (_isCapturing)
                         Container(
-                          color: Colors.black54,
+                          color: Colors.white.withValues(alpha: 0.8),
                           child: const Center(
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 CircularProgressIndicator(
-                                    color: Color(0xFF6C63FF)),
+                                    color: Color(0xFF1B76F2)),
                                 SizedBox(height: 12),
                                 Text('Verificando...',
                                     style: TextStyle(
-                                        color: Colors.white70,
+                                        color: Color(0xFF6B7280),
                                         fontSize: 14)),
                               ],
                             ),
@@ -238,11 +235,11 @@ class _LivenessScreenState extends ConsumerState<LivenessScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.1),
+                  color: Colors.red.shade50,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child:
-                    Text(_error!, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
+                child: Text(_error!,
+                    style: TextStyle(color: Colors.red.shade700, fontSize: 13)),
               ),
             ),
           Padding(
@@ -258,7 +255,7 @@ class _LivenessScreenState extends ConsumerState<LivenessScreen> {
                       icon: const Icon(Icons.camera_alt_outlined),
                       label: const Text('Tirar selfie'),
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF6C63FF),
+                        backgroundColor: const Color(0xFF1B76F2),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14)),
                       ),
@@ -274,8 +271,8 @@ class _LivenessScreenState extends ConsumerState<LivenessScreen> {
                       icon: const Icon(Icons.photo_library_outlined),
                       label: const Text('Escolher da galeria'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white60,
-                        side: const BorderSide(color: Colors.white24),
+                        foregroundColor: const Color(0xFF6B7280),
+                        side: const BorderSide(color: Color(0xFFE5E7EB)),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14)),
                       ),

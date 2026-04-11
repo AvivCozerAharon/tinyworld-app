@@ -46,22 +46,26 @@ class MapState {
   final String? sessionId;
   final List<SimulationEntry> activeSimulations;
   final bool isSearching;
+  final bool searchDone;
 
   const MapState({
     this.sessionId,
     this.activeSimulations = const [],
     this.isSearching = false,
+    this.searchDone = false,
   });
 
   MapState copyWith({
     String? sessionId,
     List<SimulationEntry>? activeSimulations,
     bool? isSearching,
+    bool? searchDone,
   }) =>
       MapState(
         sessionId: sessionId ?? this.sessionId,
         activeSimulations: activeSimulations ?? this.activeSimulations,
         isSearching: isSearching ?? this.isSearching,
+        searchDone: searchDone ?? this.searchDone,
       );
 }
 
@@ -128,7 +132,7 @@ class MapController extends StateNotifier<MapState> {
     final resp =
         await apiClient.post('/search/start', data: {'user_id': userId});
     final sessionId = resp.data['session_id'] as String;
-    state = state.copyWith(sessionId: sessionId, isSearching: true);
+    state = state.copyWith(sessionId: sessionId, isSearching: true, searchDone: false);
     _connectWebSocket(sessionId);
   }
 
@@ -139,6 +143,14 @@ class MapController extends StateNotifier<MapState> {
     _channel!.stream.cast<String>().listen((raw) {
       final event = jsonDecode(raw) as Map<String, dynamic>;
       handleEvent(event);
+    }, onDone: () {
+      if (mounted) {
+        state = state.copyWith(isSearching: false, searchDone: true);
+      }
+    }, onError: (_) {
+      if (mounted) {
+        state = state.copyWith(isSearching: false, searchDone: true);
+      }
     });
   }
 

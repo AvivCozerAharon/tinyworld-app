@@ -52,153 +52,146 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
   Widget build(BuildContext context) {
     final state = ref.watch(onboardingControllerProvider);
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF0F3460)],
-          ),
-        ),
-        child: SafeArea(
-          child: Stack(
-            children: [
-              AnimatedBuilder(
-                animation: _ctrl,
-                builder: (_, __) => CustomPaint(
-                  painter: _ConfettiPainter(
-                    confetti: _confetti,
-                    progress: _ctrl.value,
-                  ),
-                  child: const SizedBox.expand(),
+      backgroundColor: const Color(0xFFFAFDFB),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            ListenableBuilder(
+              listenable: _ctrl,
+              builder: (_, __) => CustomPaint(
+                painter: _ConfettiPainter(
+                  confetti: _confetti,
+                  progress: _ctrl.value,
                 ),
+                child: const SizedBox.expand(),
               ),
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Spacer(flex: 2),
-                      FadeTransition(
-                        opacity: _fadeIn,
-                        child: ScaleTransition(
-                          scale: _scaleIn,
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: const RadialGradient(
-                                colors: [
-                                  Color(0xFF6C63FF),
-                                  Color(0xFF8B83FF),
-                                ],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF6C63FF).withOpacity(0.4),
-                                  blurRadius: 32,
-                                  spreadRadius: 4,
-                                ),
+            ),
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Spacer(flex: 2),
+                    FadeTransition(
+                      opacity: _fadeIn,
+                      child: ScaleTransition(
+                        scale: _scaleIn,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFF1B76F2),
+                                Color(0xFF3B82F6),
                               ],
                             ),
-                            child: state.avatarUrl != null
-                                ? AvatarPreview(
-                                    avatarUrl: state.avatarUrl!, size: 140)
-                                : Container(
-                                    width: 140,
-                                    height: 140,
-                                    decoration: const BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Color(0xFF6C63FF),
-                                    ),
-                                    child: const Icon(Icons.person,
-                                        size: 60, color: Colors.white24),
-                                  ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      SlideTransition(
-                        position: Tween(
-                          begin: const Offset(0, 0.3),
-                          end: Offset.zero,
-                        ).animate(_slideUp),
-                        child: FadeTransition(
-                          opacity: _fadeIn,
-                          child: Column(
-                            children: [
-                              ShaderMask(
-                                shaderCallback: (bounds) =>
-                                    const LinearGradient(
-                                  colors: [
-                                    Colors.white,
-                                    Color(0xFFB3AFFF),
-                                  ],
-                                ).createShader(bounds),
-                                child: const Text(
-                                  'Bem-vindo\nao TinyWorld!',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                    height: 1.2,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'Seu agente já está pronto\npara explorar o mundo.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.45),
-                                  fontSize: 15,
-                                  height: 1.5,
-                                ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF1B76F2)
+                                    .withValues(alpha: 0.3),
+                                blurRadius: 32,
+                                spreadRadius: 4,
                               ),
                             ],
                           ),
+                          child: state.avatarUrl != null
+                              ? AvatarPreview(
+                                  avatarUrl: state.avatarUrl!, size: 140)
+                              : Container(
+                                  width: 140,
+                                  height: 140,
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Color(0xFF1B76F2),
+                                  ),
+                                  child: const Icon(Icons.person,
+                                      size: 60, color: Colors.white24),
+                                ),
                         ),
                       ),
-                      const Spacer(flex: 3),
-                      FadeTransition(
+                    ),
+                    const SizedBox(height: 32),
+                    SlideTransition(
+                      position: Tween(
+                        begin: const Offset(0, 0.3),
+                        end: Offset.zero,
+                      ).animate(_slideUp),
+                      child: FadeTransition(
                         opacity: _fadeIn,
-                        child: Container(
-                          width: double.infinity,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF6C63FF), Color(0xFF8B83FF)],
+                        child: Column(
+                          children: [
+                            ShaderMask(
+                              shaderCallback: (bounds) =>
+                                  const LinearGradient(
+                                colors: [
+                                  Color(0xFF1B76F2),
+                                  Color(0xFF3B82F6),
+                                ],
+                              ).createShader(bounds),
+                              child: const Text(
+                                'Bem-vindo\nao TinyWorld!',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  height: 1.2,
+                                ),
+                              ),
                             ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Seu agente já está pronto\npara explorar o mundo.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Color(0xFF6B7280),
+                                fontSize: 15,
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const Spacer(flex: 3),
+                    FadeTransition(
+                      opacity: _fadeIn,
+                      child: Container(
+                        width: double.infinity,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF1B76F2), Color(0xFF3B82F6)],
                           ),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: () => context.go('/'),
-                              borderRadius: BorderRadius.circular(14),
-                              child: const Center(
-                                child: Text(
-                                  'Explorar o mundo',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => context.go('/'),
+                            borderRadius: BorderRadius.circular(14),
+                            child: const Center(
+                              child: Text(
+                                'Explorar o mundo',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 32),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 32),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -219,11 +212,11 @@ class _Confetti {
         speed = 0.3 + Random().nextDouble() * 0.5,
         size = 4 + Random().nextDouble() * 6,
         color = [
-          const Color(0xFF6C63FF),
-          const Color(0xFFFF6B6B),
+          const Color(0xFF1B76F2),
+          const Color(0xFF3B82F6),
           const Color(0xFFFFC107),
           const Color(0xFF4CAF50),
-          const Color(0xFF42A5F5),
+          const Color(0xFFFF6B6B),
           const Color(0xFFE040FB),
         ][Random().nextInt(6)],
         rotation = Random().nextDouble() * pi * 2;
@@ -250,7 +243,7 @@ class _ConfettiPainter extends CustomPainter {
       canvas.drawRect(
         Rect.fromCenter(
             center: Offset.zero, width: c.size, height: c.size * 0.5),
-        Paint()..color = c.color.withOpacity(opacity),
+        Paint()..color = c.color.withValues(alpha: opacity),
       );
       canvas.restore();
     }
