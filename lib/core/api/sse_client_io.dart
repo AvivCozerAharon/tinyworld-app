@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:tinyworld_app/core/storage/local_storage.dart';
 
 class SSEEvent {
   final String event;
@@ -22,6 +23,7 @@ class SSEClient {
         ));
 
   Stream<SSEEvent> post(String path, {Map<String, dynamic>? data}) async* {
+    final token = await localStorage.getIdToken();
     final response = await _dio.post<ResponseBody>(
       path,
       data: data,
@@ -30,6 +32,7 @@ class SSEClient {
         headers: {
           'Accept': 'text/event-stream',
           'Cache-Control': 'no-cache',
+          if (token != null) 'Authorization': 'Bearer $token',
         },
       ),
     );

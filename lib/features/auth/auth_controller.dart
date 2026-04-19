@@ -1,10 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:crypto/crypto.dart';
+import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:tinyworld_app/core/api/rest_client.dart';
 import 'package:tinyworld_app/core/storage/local_storage.dart';
 
 class AuthState {
@@ -136,6 +139,25 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
+  /// Returns true if the user has completed onboarding (server is source of truth).
+  /// Falls back to local value on error.
+  Future<bool> checkOnboardingFromServer() async {
+    try {
+      final resp = await apiClient.get<Map<String, dynamic>>('/profile/me');
+      final done = (resp.data?['onboarding_completed'] as bool?) ?? false;
+      await localStorage.setOnboardingDone(done);
+      return done;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        await localStorage.setOnboardingDone(false);
+        return false;
+      }
+      return await localStorage.isOnboardingDone();
+    } catch (_) {
+      return await localStorage.isOnboardingDone();
+    }
+  }
+
   Future<void> signOut() async {
     await GoogleSignIn().signOut();
     await FirebaseAuth.instance.signOut();
@@ -169,8 +191,8 @@ class AuthController extends StateNotifier<AuthState> {
   String _generateNonce([int length = 32]) {
     const charset =
         '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
-    final random = DateTime.now().millisecondsSinceEpoch;
-    return List.generate(length, (i) => charset[(random + i) % charset.length])
+    final random = Random.secure();
+    return List.generate(length, (_) => charset[random.nextInt(charset.length)])
         .join();
   }
 }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:tinyworld_app/core/api/rest_client.dart';
+import 'package:tinyworld_app/core/theme/styles.dart';
 import 'package:tinyworld_app/features/chats/chats_controller.dart';
 import 'package:tinyworld_app/features/chats/widgets/chat_list_item.dart';
 import 'package:tinyworld_app/shared/widgets/app_animations.dart';
@@ -45,36 +47,74 @@ class _ChatsListScreenState extends ConsumerState<ChatsListScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(chatsControllerProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Conexões')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showSimulateDialog,
-        backgroundColor: const Color(0xFF1B76F2),
-        icon: const Icon(Icons.bolt, color: Colors.white),
-        label: const Text('Simular', style: TextStyle(color: Colors.white)),
+      appBar: AppBar(
+        title: Text(
+          'Conexões',
+          style: GoogleFonts.spaceGrotesk(
+            fontWeight: FontWeight.w700,
+            color: TwColors.onBg,
+          ),
+        ),
+      ),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          gradient: TwGradients.accent,
+          borderRadius: BorderRadius.circular(TwRadius.pill),
+          boxShadow: [
+            BoxShadow(
+              color: TwColors.primary.withValues(alpha: 0.35),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: _showSimulateDialog,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          icon: const Icon(Icons.bolt, color: Colors.white),
+          label: Text(
+            'Simular',
+            style: GoogleFonts.spaceGrotesk(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
       ),
       body: state.isLoading
           ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF1B76F2)))
+              child: CircularProgressIndicator(color: TwColors.primary))
           : state.chats.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.chat_bubble_outline,
-                          size: 64, color: Colors.grey.shade300),
-                      const SizedBox(height: 16),
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: TwColors.card,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: TwColors.border),
+                        ),
+                        child: const Icon(Icons.chat_bubble_outline,
+                            size: 36, color: TwColors.muted),
+                      ),
+                      const SizedBox(height: 20),
                       Text(
                         'Nenhuma simulação ainda',
-                        style: TextStyle(
-                          color: Colors.grey.shade500,
+                        style: GoogleFonts.spaceGrotesk(
+                          color: TwColors.onSurface,
                           fontSize: 16,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       Text(
                         'Use o mapa para encontrar conexões!',
-                        style: TextStyle(
-                          color: Colors.grey.shade400,
+                        style: GoogleFonts.spaceGrotesk(
+                          color: TwColors.muted,
                           fontSize: 13,
                         ),
                       ),
@@ -82,8 +122,10 @@ class _ChatsListScreenState extends ConsumerState<ChatsListScreen> {
                   ),
                 )
               : RefreshIndicator(
-                  color: const Color(0xFF1B76F2),
-                  onRefresh: () => ref.read(chatsControllerProvider.notifier).loadChats(),
+                  color: TwColors.primary,
+                  backgroundColor: TwColors.card,
+                  onRefresh: () =>
+                      ref.read(chatsControllerProvider.notifier).loadChats(),
                   child: StaggeredListView(
                     itemCount: state.chats.length,
                     itemBuilder: (_, i) => ChatListItem(
@@ -109,20 +151,35 @@ class _UserPickerDialog extends StatelessWidget {
         .toList();
 
     return AlertDialog(
-      title: const Text('Simular com quem?'),
+      backgroundColor: TwColors.surface,
+      title: Text(
+        'Simular com quem?',
+        style: GoogleFonts.spaceGrotesk(
+          color: TwColors.onBg,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
       content: SizedBox(
         width: 300,
         child: ready.isEmpty
-            ? const Text('Nenhum usuário disponível.')
+            ? Text('Nenhum usuário disponível.',
+                style: GoogleFonts.spaceGrotesk(color: TwColors.muted))
             : ListView.builder(
                 shrinkWrap: true,
                 itemCount: ready.length,
                 itemBuilder: (_, i) {
                   final u = ready[i];
                   return ListTile(
-                    leading: const CircleAvatar(child: Icon(Icons.person)),
-                    title: Text(u['name'] as String),
-                    subtitle: Text(u['birth_date'] as String? ?? ''),
+                    leading: const CircleAvatar(
+                      backgroundColor: TwColors.card,
+                      child: Icon(Icons.person, color: TwColors.muted),
+                    ),
+                    title: Text(u['name'] as String,
+                        style: GoogleFonts.spaceGrotesk(
+                            color: TwColors.onBg, fontWeight: FontWeight.w600)),
+                    subtitle: Text(u['birth_date'] as String? ?? '',
+                        style: GoogleFonts.spaceGrotesk(
+                            color: TwColors.muted, fontSize: 12)),
                     onTap: () =>
                         Navigator.of(context).pop(u['user_id'] as String),
                   );
@@ -132,7 +189,8 @@ class _UserPickerDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
+          child: Text('Cancelar',
+              style: GoogleFonts.spaceGrotesk(color: TwColors.muted)),
         ),
       ],
     );

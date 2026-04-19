@@ -107,6 +107,16 @@ class ChatsController extends StateNotifier<ChatsState> {
       return false;
     }
   }
+
+  Future<List<String>> getIcebreakers(String simId) async {
+    try {
+      final resp = await apiClient.get('/chats/$simId/icebreakers');
+      final list = resp.data['icebreakers'] as List?;
+      return list?.map((e) => e.toString()).toList() ?? [];
+    } catch (_) {
+      return [];
+    }
+  }
 }
 
 final chatsControllerProvider =

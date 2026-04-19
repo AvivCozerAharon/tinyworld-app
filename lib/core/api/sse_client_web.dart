@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
+import 'package:tinyworld_app/core/storage/local_storage.dart';
 
 class SSEEvent {
   final String event;
@@ -17,11 +18,15 @@ class SSEClient {
   SSEClient({required this.baseUrl});
 
   Stream<SSEEvent> post(String path, {Map<String, dynamic>? data}) async* {
+    final token = await localStorage.getIdToken();
     final controller = StreamController<SSEEvent>();
     final xhr = html.HttpRequest();
     xhr.open('POST', '$baseUrl$path', async: true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.setRequestHeader('Accept', 'text/event-stream');
+    if (token != null) {
+      xhr.setRequestHeader('Authorization', 'Bearer $token');
+    }
 
     int processed = 0;
     String? eventType;

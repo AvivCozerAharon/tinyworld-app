@@ -1,13 +1,13 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:tinyworld_app/core/api/rest_client.dart';
 import 'package:tinyworld_app/core/api/sse_client.dart';
-import 'package:tinyworld_app/core/storage/local_storage.dart';
+import 'package:tinyworld_app/core/theme/styles.dart';
 import 'package:tinyworld_app/features/chats/widgets/typing_indicator.dart';
 import 'package:tinyworld_app/features/onboarding/onboarding_controller.dart';
 import 'package:tinyworld_app/shared/widgets/onboarding_scaffold.dart';
@@ -32,7 +32,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   bool _initialized = false;
   bool _sttAvailable = false;
   bool _isListening = false;
-  bool _voiceMode = false;
+  bool _voiceMode = true;
+  int _listenSession = 0;
   String _partialText = '';
   double _soundLevel = 0;
   String _streamingText = '';
@@ -59,6 +60,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
 
   void _startListening() {
     if (!_sttAvailable || _isListening) return;
+    final session = ++_listenSession;
     setState(() {
       _isListening = true;
       _partialText = '';
@@ -66,10 +68,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     });
     _stt.listen(
       onResult: (result) {
-        if (!mounted) return;
-        setState(() {
-          _partialText = result.recognizedWords;
-        });
+        if (!mounted || _listenSession != session) return;
+        setState(() => _partialText = result.recognizedWords);
         if (result.finalResult) {
           setState(() {
             _isListening = false;
@@ -78,7 +78,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
           final text = result.recognizedWords.trim();
           if (text.isNotEmpty) {
             _ctrl.text = text;
-            _send();
+            _send(byVoice: _voiceMode);
           }
         }
       },
@@ -98,13 +98,22 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     });
   }
 
-  void _toggleVoiceMode() {
-    setState(() => _voiceMode = !_voiceMode);
-    if (_voiceMode && !_done && !_sending && _initialized) {
-      _startListening();
-    } else {
-      _stopListening();
+  void _stopAndSend() {
+    _stt.stop();
+    setState(() {
+      _isListening = false;
+      _soundLevel = 0;
+    });
+    final text = _partialText.trim();
+    if (text.isNotEmpty) {
+      _ctrl.text = text;
+      _send(byVoice: true);
     }
+  }
+
+  void _switchToTextMode() {
+    _stopListening();
+    setState(() => _voiceMode = false);
   }
 
   Future<void> _startChat() async {
@@ -136,21 +145,14 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
       _messages.add(_ChatMessage(text: text, isTinyzinho: true));
     });
     _scrollToBottom();
-
-    if (_voiceMode && !_done) {
-      await Future.delayed(const Duration(milliseconds: 500));
-      if (mounted && _voiceMode && !_done && !_sending) {
-        _startListening();
-      }
-    }
   }
 
-  Future<void> _send() async {
+  Future<void> _send({bool byVoice = false}) async {
     final text = _ctrl.text.trim();
     if (text.isEmpty || _sending || _done) return;
     _stopListening();
     setState(() {
-      _messages.add(_ChatMessage(text: text, isTinyzinho: false));
+      _messages.add(_ChatMessage(text: text, isTinyzinho: false, isVoice: byVoice));
       _ctrl.clear();
       _partialText = '';
       _sending = true;
@@ -158,7 +160,6 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     _scrollToBottom();
 
     try {
-      final token = await localStorage.getIdToken();
       sseClient.post('/onboarding/chat/stream', data: {
         'question_index': _questionIndex,
         'answer': text,
@@ -186,10 +187,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
         }
 
         if (event.event == 'token' && event.data != null) {
-          final tokenChar = event.data!['token'] as String? ?? '';
-          setState(() {
-            _streamingText += tokenChar;
-          });
+          setState(() => _streamingText += event.data!['token'] as String? ?? '');
           _scrollToBottom();
           return;
         }
@@ -248,9 +246,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
           _buildTinyzinhoHeader(),
           Expanded(child: _buildMessageList()),
           if (_isTyping) _buildTypingBubble(),
-          if (_isStreaming && _streamingText.isNotEmpty)
-            _buildStreamingBubble(),
-          if (_isListening && _partialText.isNotEmpty)
+          if (_isStreaming && _streamingText.isNotEmpty) _buildStreamingBubble(),
+          if (_voiceMode && _isListening && _partialText.isNotEmpty)
             _buildLiveTranscription(),
           if (_done)
             Padding(
@@ -271,8 +268,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFF0F0F0))),
+        color: TwColors.surface,
+        border: Border(bottom: BorderSide(color: TwColors.border, width: 0.5)),
       ),
       child: Row(
         children: [
@@ -280,103 +277,52 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
             width: 36,
             height: 36,
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF1B76F2), Color(0xFF3B82F6)],
-              ),
+              gradient: TwGradients.accent,
               borderRadius: BorderRadius.all(Radius.circular(10)),
             ),
-            child: const Center(
-              child: Text(
-                'T',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
+            child: Center(
+              child: Text('T',
+                  style: GoogleFonts.spaceGrotesk(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  )),
             ),
           ),
           const SizedBox(width: 10),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Tinyzinho',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1A1A2E),
-                ),
-              ),
+              Text('Tinyzinho',
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: TwColors.onBg,
+                  )),
               Text(
                 _isTyping
                     ? 'digitando...'
                     : _isListening
                         ? 'ouvindo...'
                         : 'online',
-                style: TextStyle(
+                style: GoogleFonts.spaceGrotesk(
                   fontSize: 11,
                   color: _isListening
-                      ? Colors.orange
+                      ? TwColors.warning
                       : _isTyping
-                          ? const Color(0xFF1B76F2)
-                          : const Color(0xFF22C55E),
+                          ? TwColors.primary
+                          : TwColors.success,
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
           const Spacer(),
-          if (_sttAvailable)
-            GestureDetector(
-              onTap: _toggleVoiceMode,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: _voiceMode
-                      ? const Color(0xFF1B76F2).withValues(alpha: 0.1)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _voiceMode
-                        ? const Color(0xFF1B76F2)
-                        : const Color(0xFFE5E7EB),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.headset_mic,
-                      size: 14,
-                      color: _voiceMode
-                          ? const Color(0xFF1B76F2)
-                          : const Color(0xFF9CA3AF),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Voz',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: _voiceMode
-                            ? const Color(0xFF1B76F2)
-                            : const Color(0xFF9CA3AF),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          const SizedBox(width: 8),
           Text(
             '$_questionIndex/$_totalQuestions',
-            style: const TextStyle(
+            style: GoogleFonts.spaceGrotesk(
               fontSize: 12,
-              color: Color(0xFF9CA3AF),
+              color: TwColors.muted,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -392,12 +338,13 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
       itemCount: _messages.length,
       itemBuilder: (_, i) {
         final msg = _messages[i];
-        return _buildMessageBubble(msg.text, msg.isTinyzinho);
+        return _buildMessageBubble(msg);
       },
     );
   }
 
-  Widget _buildMessageBubble(String text, bool isTiny) {
+  Widget _buildMessageBubble(_ChatMessage msg) {
+    final isTiny = msg.isTinyzinho;
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
@@ -411,13 +358,12 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
               height: 24,
               margin: const EdgeInsets.only(right: 6),
               decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                    colors: [Color(0xFF1B76F2), Color(0xFF3B82F6)]),
+                gradient: TwGradients.accent,
                 borderRadius: BorderRadius.all(Radius.circular(6)),
               ),
-              child: const Center(
+              child: Center(
                 child: Text('T',
-                    style: TextStyle(
+                    style: GoogleFonts.spaceGrotesk(
                         color: Colors.white,
                         fontSize: 11,
                         fontWeight: FontWeight.w800)),
@@ -430,22 +376,39 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                   maxWidth: MediaQuery.of(context).size.width * 0.7),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color:
-                    isTiny ? const Color(0xFFF5F7FA) : const Color(0xFF1B76F2),
+                color: isTiny ? TwColors.card : null,
+                gradient: isTiny ? null : TwGradients.primary,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(14),
                   topRight: const Radius.circular(14),
                   bottomLeft: Radius.circular(isTiny ? 4 : 14),
                   bottomRight: Radius.circular(isTiny ? 14 : 4),
                 ),
+                border: isTiny
+                    ? Border.all(color: TwColors.border, width: 0.5)
+                    : null,
               ),
-              child: Text(
-                text,
-                style: TextStyle(
-                  color: isTiny ? const Color(0xFF1A1A2E) : Colors.white,
-                  fontSize: 14,
-                  height: 1.4,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Flexible(
+                    child: Text(
+                      msg.text,
+                      style: GoogleFonts.spaceGrotesk(
+                        color: isTiny ? TwColors.onBg : Colors.white,
+                        fontSize: 14,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                  if (!isTiny && msg.isVoice) ...[
+                    const SizedBox(width: 6),
+                    Icon(Icons.mic,
+                        size: 11,
+                        color: Colors.white.withValues(alpha: 0.7)),
+                  ],
+                ],
               ),
             ),
           ),
@@ -465,13 +428,12 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
             height: 24,
             margin: const EdgeInsets.only(right: 6),
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                  colors: [Color(0xFF1B76F2), Color(0xFF3B82F6)]),
+              gradient: TwGradients.accent,
               borderRadius: BorderRadius.all(Radius.circular(6)),
             ),
-            child: const Center(
+            child: Center(
               child: Text('T',
-                  style: TextStyle(
+                  style: GoogleFonts.spaceGrotesk(
                       color: Colors.white,
                       fontSize: 11,
                       fontWeight: FontWeight.w800)),
@@ -480,10 +442,11 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFFF5F7FA),
+              color: TwColors.card,
               borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: TwColors.border, width: 0.5),
             ),
-            child: const TypingIndicator(dotColor: Color(0xFF1B76F2)),
+            child: const TypingIndicator(dotColor: TwColors.primary),
           ),
         ],
       ),
@@ -501,13 +464,12 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
             height: 24,
             margin: const EdgeInsets.only(right: 6),
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                  colors: [Color(0xFF1B76F2), Color(0xFF3B82F6)]),
+              gradient: TwGradients.accent,
               borderRadius: BorderRadius.all(Radius.circular(6)),
             ),
-            child: const Center(
+            child: Center(
               child: Text('T',
-                  style: TextStyle(
+                  style: GoogleFonts.spaceGrotesk(
                       color: Colors.white,
                       fontSize: 11,
                       fontWeight: FontWeight.w800)),
@@ -519,32 +481,26 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                   maxWidth: MediaQuery.of(context).size.width * 0.7),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F7FA),
+                color: TwColors.card,
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(14),
                   topRight: Radius.circular(14),
                   bottomLeft: Radius.circular(4),
                   bottomRight: Radius.circular(14),
                 ),
+                border: Border.all(color: TwColors.border, width: 0.5),
               ),
               child: Row(
                 children: [
                   Flexible(
                     child: Text(
                       _streamingText,
-                      style: const TextStyle(
-                        color: Color(0xFF1A1A2E),
-                        fontSize: 14,
-                        height: 1.4,
-                      ),
+                      style: GoogleFonts.spaceGrotesk(
+                          color: TwColors.onBg, fontSize: 14, height: 1.4),
                     ),
                   ),
                   const SizedBox(width: 2),
-                  Container(
-                    width: 2,
-                    height: 14,
-                    color: const Color(0xFF1B76F2),
-                  ),
+                  Container(width: 2, height: 14, color: TwColors.primary),
                 ],
               ),
             ),
@@ -564,36 +520,31 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
               BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: const Color(0xFF1B76F2).withValues(alpha: 0.15),
+            color: TwColors.primary.withValues(alpha: 0.12),
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(14),
               topRight: Radius.circular(14),
               bottomLeft: Radius.circular(14),
               bottomRight: Radius.circular(4),
             ),
+            border:
+                Border.all(color: TwColors.primary.withValues(alpha: 0.3)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Flexible(
                 child: Text(
-                  _partialText.isEmpty ? 'Ouvindo...' : _partialText,
-                  style: TextStyle(
-                    color: _partialText.isEmpty
-                        ? const Color(0xFF6B7280)
-                        : const Color(0xFF1A1A2E),
+                  _partialText,
+                  style: GoogleFonts.spaceGrotesk(
+                    color: TwColors.onBg,
                     fontSize: 14,
-                    fontStyle: _partialText.isEmpty ? FontStyle.italic : null,
                     height: 1.4,
                   ),
                 ),
               ),
               const SizedBox(width: 4),
-              Container(
-                width: 2,
-                height: 14,
-                color: const Color(0xFF1B76F2),
-              ),
+              Container(width: 2, height: 14, color: TwColors.primary),
             ],
           ),
         ),
@@ -608,34 +559,44 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
 
   Widget _buildVoiceInput() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(8, 4, 8, 20),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              VoiceWaveButton(
-                isListening: _isListening,
-                onTap: () {
-                  if (_isListening) {
-                    _stopListening();
-                  } else {
-                    _startListening();
-                  }
-                },
-                size: 64,
-                soundLevel: _soundLevel,
-              ),
-            ],
+          VoiceWaveButton(
+            isListening: _isListening,
+            onTap: _isListening ? _stopAndSend : _startListening,
+            size: 72,
+            soundLevel: _soundLevel,
           ),
-          const SizedBox(height: 8),
-          Text(
-            _isListening ? 'Toque para parar' : 'Toque para falar',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade500,
-              fontWeight: FontWeight.w500,
+          const SizedBox(height: 12),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: Text(
+              _isListening ? 'Toque para enviar' : 'Toque para responder',
+              key: ValueKey(_isListening),
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 13,
+                color: TwColors.muted,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          TextButton(
+            onPressed: _switchToTextMode,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+            child: Text(
+              'Prefiro digitar',
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 13,
+                color: TwColors.muted,
+                fontWeight: FontWeight.w600,
+                decoration: TextDecoration.underline,
+                decorationColor: TwColors.muted,
+              ),
             ),
           ),
         ],
@@ -645,7 +606,11 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
 
   Widget _buildTextInput() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(8, 4, 8, 20),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
+      decoration: const BoxDecoration(
+        color: TwColors.surface,
+        border: Border(top: BorderSide(color: TwColors.border, width: 0.5)),
+      ),
       child: Row(
         children: [
           if (_sttAvailable)
@@ -666,29 +631,37 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F7FA),
+                color: TwColors.card,
                 borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: TwColors.border),
               ),
               child: TextField(
                 controller: _ctrl,
-                style: const TextStyle(color: Color(0xFF1A1A2E), fontSize: 14),
-                decoration: const InputDecoration(
+                style:
+                    GoogleFonts.spaceGrotesk(color: TwColors.onBg, fontSize: 14),
+                decoration: InputDecoration(
                   hintText: 'Sua resposta...',
-                  hintStyle: TextStyle(color: Color(0xFFC4C9D0)),
+                  hintStyle: GoogleFonts.spaceGrotesk(
+                      color: TwColors.muted, fontSize: 14),
                   border: InputBorder.none,
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 18, vertical: 12),
                 ),
                 onSubmitted: (_) => _send(),
               ),
             ),
           ),
           const SizedBox(width: 8),
-          CircleAvatar(
-            backgroundColor: const Color(0xFF1B76F2),
-            child: IconButton(
-              onPressed: _send,
-              icon: const Icon(Icons.send, size: 18, color: Colors.white),
+          GestureDetector(
+            onTap: _send,
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                gradient: TwGradients.primary,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.send, size: 18, color: Colors.white),
             ),
           ),
         ],
@@ -700,5 +673,10 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
 class _ChatMessage {
   final String text;
   final bool isTinyzinho;
-  _ChatMessage({required this.text, required this.isTinyzinho});
+  final bool isVoice;
+  _ChatMessage({
+    required this.text,
+    required this.isTinyzinho,
+    this.isVoice = false,
+  });
 }

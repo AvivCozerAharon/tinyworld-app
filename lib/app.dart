@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tinyworld_app/core/storage/local_storage.dart';
+import 'package:tinyworld_app/core/theme/styles.dart';
 import 'package:tinyworld_app/features/auth/screens/login_screen.dart';
 import 'package:tinyworld_app/features/onboarding/screens/liveness_screen.dart';
 import 'package:tinyworld_app/features/onboarding/screens/avatar_screen.dart';
@@ -18,6 +19,7 @@ import 'package:tinyworld_app/features/profile/screens/profile_screen.dart';
 import 'package:tinyworld_app/features/profile/screens/train_agent_screen.dart';
 import 'package:tinyworld_app/features/profile/screens/brain_screen.dart';
 import 'package:tinyworld_app/features/profile/screens/edit_profile_screen.dart';
+import 'package:tinyworld_app/features/companion/screens/companion_screen.dart';
 import 'package:tinyworld_app/shared/widgets/app_animations.dart';
 
 final _router = GoRouter(
@@ -118,6 +120,7 @@ final _router = GoRouter(
           builder: (_, state) =>
               ConversationScreen(simId: state.pathParameters['simId']!),
         ),
+        GoRoute(path: '/companion', builder: (_, __) => const CompanionScreen()),
         GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
         GoRoute(
             path: '/profile/train',
@@ -142,67 +145,12 @@ final _router = GoRouter(
 class TinyWorldApp extends StatelessWidget {
   const TinyWorldApp({super.key});
 
-  static const _twBlue = Color(0xFF1B76F2);
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'tinyworld',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: _twBlue,
-          brightness: Brightness.light,
-          primary: _twBlue,
-        ),
-        useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFFAFDFB),
-        textTheme: const TextTheme(
-          headlineLarge: TextStyle(
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.5,
-            height: 1.15,
-          ),
-          headlineMedium: TextStyle(
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.4,
-            height: 1.2,
-          ),
-          titleLarge:
-              TextStyle(fontWeight: FontWeight.w600, letterSpacing: -0.02),
-          bodyLarge: TextStyle(fontSize: 15, height: 1.6),
-          bodyMedium: TextStyle(fontSize: 14, height: 1.5),
-        ),
-        cardTheme: const CardThemeData(
-          elevation: 0,
-          color: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(16)),
-          ),
-        ),
-        filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(
-            backgroundColor: _twBlue,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(14)),
-            ),
-          ),
-        ),
-        appBarTheme: const AppBarTheme(
-          centerTitle: false,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          backgroundColor: Colors.transparent,
-          foregroundColor: Color(0xFF1A1A2E),
-        ),
-        navigationBarTheme: NavigationBarThemeData(
-          indicatorColor: _twBlue.withValues(alpha: 0.1),
-          labelTextStyle: const WidgetStatePropertyAll(
-            TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-          ),
-        ),
-      ),
+      theme: TwTheme.dark,
       routerConfig: _router,
     );
   }
@@ -224,6 +172,8 @@ class _MainShellState extends State<MainShell> {
     super.didChangeDependencies();
     final location = GoRouterState.of(context).uri.path;
     if (location.startsWith('/profile')) {
+      _currentIndex = 3;
+    } else if (location.startsWith('/companion')) {
       _currentIndex = 2;
     } else if (location.startsWith('/chats')) {
       _currentIndex = 1;
@@ -237,15 +187,11 @@ class _MainShellState extends State<MainShell> {
     return Scaffold(
       body: widget.child,
       bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
-          ],
+        decoration: const BoxDecoration(
+          color: TwColors.surface,
+          border: Border(
+            top: BorderSide(color: TwColors.border, width: 0.5),
+          ),
         ),
         child: SafeArea(
           child: Padding(
@@ -273,12 +219,22 @@ class _MainShellState extends State<MainShell> {
                   },
                 ),
                 _NavButton(
-                  icon: Icons.person_outline,
-                  activeIcon: Icons.person,
-                  label: 'Perfil',
+                  icon: Icons.auto_awesome_outlined,
+                  activeIcon: Icons.auto_awesome,
+                  label: 'Tiny',
                   isActive: _currentIndex == 2,
                   onTap: () {
                     setState(() => _currentIndex = 2);
+                    context.go('/companion');
+                  },
+                ),
+                _NavButton(
+                  icon: Icons.person_outline,
+                  activeIcon: Icons.person,
+                  label: 'Perfil',
+                  isActive: _currentIndex == 3,
+                  onTap: () {
+                    setState(() => _currentIndex = 3);
                     context.go('/profile');
                   },
                 ),
@@ -323,16 +279,19 @@ class _NavButton extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
                 decoration: BoxDecoration(
-                  color: isActive
-                      ? const Color(0xFF1B76F2).withValues(alpha: 0.12)
-                      : Colors.transparent,
+                  gradient: isActive ? TwGradients.primary : null,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: AnimatedNavIcon(
-                  icon: icon,
-                  activeIcon: activeIcon,
-                  isActive: isActive,
-                  size: 24,
+                child: IconTheme(
+                  data: IconThemeData(
+                    color: isActive ? Colors.white : TwColors.muted,
+                  ),
+                  child: AnimatedNavIcon(
+                    icon: icon,
+                    activeIcon: activeIcon,
+                    isActive: isActive,
+                    size: 24,
+                  ),
                 ),
               ),
               const SizedBox(height: 2),
@@ -340,9 +299,7 @@ class _NavButton extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                  color: isActive
-                      ? const Color(0xFF1B76F2)
-                      : const Color(0xFF9CA3AF),
+                  color: isActive ? TwColors.primary : TwColors.muted,
                 ),
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeOut,

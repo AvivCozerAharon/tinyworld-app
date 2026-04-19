@@ -2,7 +2,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:tinyworld_app/core/storage/local_storage.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:tinyworld_app/core/theme/styles.dart';
 import 'package:tinyworld_app/features/auth/auth_controller.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -17,6 +18,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   bool _showEmailForm = false;
+  bool _obscurePass = true;
   late AnimationController _floatCtrl;
 
   @override
@@ -42,12 +44,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
+      backgroundColor: TwColors.bg,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF1B76F2), Color(0xFF0D4A8F)],
+            colors: [Color(0xFF1A0840), TwColors.bg],
           ),
         ),
         child: SafeArea(
@@ -66,11 +69,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             const Spacer(flex: 2),
                             _buildLogo(),
                             const SizedBox(height: 24),
-                            const Text(
+                            Text(
                               'Small world.\nDeep connections.',
                               textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.white,
+                              style: GoogleFonts.spaceGrotesk(
+                                color: TwColors.onBg,
                                 fontSize: 26,
                                 fontWeight: FontWeight.w700,
                                 height: 1.2,
@@ -81,8 +84,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             Text(
                               'Seu agente encontra as pessoas certas\nantes do primeiro olá.',
                               textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.7),
+                              style: GoogleFonts.spaceGrotesk(
+                                color: TwColors.onSurface,
                                 fontSize: 15,
                                 height: 1.5,
                               ),
@@ -115,36 +118,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             height: 80,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Colors.white, Color(0xFFE8F4FD)],
-              ),
+              gradient: TwGradients.accentDiagonal,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 20,
+                  color: TwColors.primary.withValues(alpha: 0.4),
+                  blurRadius: 24,
                   offset: const Offset(0, 8),
                 ),
               ],
             ),
             child: Center(
               child: RichText(
-                text: const TextSpan(
+                text: TextSpan(
                   children: [
                     TextSpan(
-                      text: 'tiny',
-                      style: TextStyle(
-                        color: Color(0xFF1B76F2),
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    TextSpan(
-                      text: 'world',
-                      style: TextStyle(
-                        color: Color(0xFF3B82F6),
-                        fontSize: 22,
+                      text: 'tw',
+                      style: GoogleFonts.spaceGrotesk(
+                        color: Colors.white,
+                        fontSize: 24,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -173,13 +164,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   Widget _buildBottomSheet(AuthState authState) {
     return Container(
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: TwColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border(
+          top: BorderSide(color: TwColors.border, width: 0.5),
+        ),
       ),
       padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Drag handle
+          Container(
+            width: 36,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 20),
+            decoration: BoxDecoration(
+              color: TwColors.border,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
           if (!_showEmailForm) ...[
             _SocialButton(
               icon: _googleIcon(),
@@ -189,14 +193,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ),
             const SizedBox(height: 12),
             _SocialButton(
-              icon: _appleIcon(),
+              icon: const Icon(Icons.apple, size: 22, color: TwColors.onBg),
               label: 'Continuar com Apple',
               onPressed: () => _handleApple(authState),
+              isLoading: authState.isLoading,
             ),
             const SizedBox(height: 12),
             _SocialButton(
               icon: const Icon(Icons.email_outlined,
-                  size: 20, color: Color(0xFF1B76F2)),
+                  size: 20, color: TwColors.primary),
               label: 'Continuar com email',
               onPressed: () => setState(() => _showEmailForm = true),
               isOutlined: true,
@@ -210,12 +215,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red.shade50,
+                color: TwColors.error.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: TwColors.error.withValues(alpha: 0.3)),
               ),
               child: Text(
                 authState.error!,
-                style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+                style: GoogleFonts.spaceGrotesk(
+                    color: TwColors.error, fontSize: 13),
               ),
             ),
           ],
@@ -223,8 +231,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           Text(
             'Ao continuar, você concorda com nossos\nTermos de Uso e Política de Privacidade',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.grey.shade500,
+            style: GoogleFonts.spaceGrotesk(
+              color: TwColors.muted,
               fontSize: 11,
               height: 1.4,
             ),
@@ -240,35 +248,64 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         TextField(
           controller: _emailCtrl,
           keyboardType: TextInputType.emailAddress,
+          style: GoogleFonts.spaceGrotesk(color: TwColors.onBg, fontSize: 14),
           decoration: InputDecoration(
             hintText: 'Email',
-            hintStyle: TextStyle(color: Colors.grey.shade400),
+            hintStyle:
+                GoogleFonts.spaceGrotesk(color: TwColors.muted, fontSize: 14),
             filled: true,
-            fillColor: const Color(0xFFF5F7FA),
+            fillColor: TwColors.card,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
+              borderSide: const BorderSide(color: TwColors.border),
             ),
-            contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 14),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: TwColors.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: TwColors.primary, width: 1.5),
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
         ),
         const SizedBox(height: 10),
         TextField(
           controller: _passCtrl,
-          obscureText: true,
+          obscureText: _obscurePass,
+          style: GoogleFonts.spaceGrotesk(color: TwColors.onBg, fontSize: 14),
           decoration: InputDecoration(
             hintText: 'Senha',
-            hintStyle: TextStyle(color: Colors.grey.shade400),
+            hintStyle:
+                GoogleFonts.spaceGrotesk(color: TwColors.muted, fontSize: 14),
             filled: true,
-            fillColor: const Color(0xFFF5F7FA),
+            fillColor: TwColors.card,
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscurePass ? Icons.visibility_off : Icons.visibility,
+                color: TwColors.muted,
+                size: 18,
+              ),
+              onPressed: () => setState(() => _obscurePass = !_obscurePass),
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
+              borderSide: const BorderSide(color: TwColors.border),
             ),
-            contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 14),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: TwColors.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: TwColors.primary, width: 1.5),
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
+          onSubmitted: (_) => _handleEmailLogin(authState),
         ),
         const SizedBox(height: 14),
         SizedBox(
@@ -277,41 +314,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
-              gradient: const LinearGradient(
-                colors: [Color(0xFF1B76F2), Color(0xFF3B82F6)],
-              ),
+              gradient: TwGradients.primary,
             ),
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                onTap: authState.isLoading
-                    ? null
-                    : () {
-                        final email = _emailCtrl.text.trim();
-                        final pass = _passCtrl.text.trim();
-                        if (email.isEmpty || pass.isEmpty) return;
-                        ref
-                            .read(authControllerProvider.notifier)
-                            .signInWithEmail(email, pass)
-                            .then((ok) {
-                          if (ok && mounted) {
-                            final user = ref
-                                .read(authControllerProvider)
-                                .firebaseUser;
-                            if (user != null) {
-                              final done =
-                                  localStorage.isOnboardingDone();
-                              done.then((isDone) {
-                                if (mounted) {
-                                  context.go(isDone
-                                      ? '/'
-                                      : '/onboarding/basic-info');
-                                }
-                              });
-                            }
-                          }
-                        });
-                      },
+                onTap: authState.isLoading ? null : () => _handleEmailLogin(authState),
                 borderRadius: BorderRadius.circular(14),
                 child: Center(
                   child: authState.isLoading
@@ -323,9 +331,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             color: Colors.white,
                           ),
                         )
-                      : const Text(
+                      : Text(
                           'Entrar',
-                          style: TextStyle(
+                          style: GoogleFonts.spaceGrotesk(
                             color: Colors.white,
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
@@ -341,34 +349,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           onPressed: () => setState(() => _showEmailForm = false),
           child: Text(
             'Voltar',
-            style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+            style: GoogleFonts.spaceGrotesk(
+                color: TwColors.muted, fontSize: 13),
           ),
         ),
       ],
     );
   }
 
-  Future<void> _handleGoogle(AuthState authState) async {
-    final ok =
-        await ref.read(authControllerProvider.notifier).signInWithGoogle();
+  Future<void> _handleEmailLogin(AuthState authState) async {
+    final email = _emailCtrl.text.trim();
+    final pass = _passCtrl.text.trim();
+    if (email.isEmpty || pass.isEmpty) return;
+    final ctrl = ref.read(authControllerProvider.notifier);
+    final ok = await ctrl.signInWithEmail(email, pass);
     if (ok && mounted) {
-      final user = ref.read(authControllerProvider).firebaseUser;
-      if (user != null) {
-        final done = await localStorage.isOnboardingDone();
-        if (mounted) context.go(done ? '/' : '/onboarding/basic-info');
-      }
+      final done = await ctrl.checkOnboardingFromServer();
+      if (mounted) context.go(done ? '/' : '/onboarding/basic-info');
+    }
+  }
+
+  Future<void> _handleGoogle(AuthState authState) async {
+    final ctrl = ref.read(authControllerProvider.notifier);
+    final ok = await ctrl.signInWithGoogle();
+    if (ok && mounted) {
+      final done = await ctrl.checkOnboardingFromServer();
+      if (mounted) context.go(done ? '/' : '/onboarding/basic-info');
     }
   }
 
   Future<void> _handleApple(AuthState authState) async {
-    final ok =
-        await ref.read(authControllerProvider.notifier).signInWithApple();
+    final ctrl = ref.read(authControllerProvider.notifier);
+    final ok = await ctrl.signInWithApple();
     if (ok && mounted) {
-      final user = ref.read(authControllerProvider).firebaseUser;
-      if (user != null) {
-        final done = await localStorage.isOnboardingDone();
-        if (mounted) context.go(done ? '/' : '/onboarding/basic-info');
-      }
+      final done = await ctrl.checkOnboardingFromServer();
+      if (mounted) context.go(done ? '/' : '/onboarding/basic-info');
     }
   }
 
@@ -376,26 +391,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     return SizedBox(
       width: 20,
       height: 20,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: const Center(
-          child: Text(
-            'G',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF4285F4),
-            ),
+      child: Center(
+        child: Text(
+          'G',
+          style: GoogleFonts.spaceGrotesk(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            color: const Color(0xFF4285F4),
           ),
         ),
       ),
     );
-  }
-
-  Widget _appleIcon() {
-    return const Icon(Icons.apple, size: 22, color: Colors.black87);
   }
 }
 
@@ -423,7 +429,7 @@ class _SocialButton extends StatelessWidget {
           ? OutlinedButton(
               onPressed: isLoading ? null : onPressed,
               style: OutlinedButton.styleFrom(
-                side: BorderSide(color: Colors.grey.shade300),
+                side: const BorderSide(color: TwColors.border),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
@@ -432,8 +438,9 @@ class _SocialButton extends StatelessWidget {
             )
           : Container(
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F7FA),
+                color: TwColors.card,
                 borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: TwColors.border),
               ),
               child: Material(
                 color: Colors.transparent,
@@ -455,15 +462,16 @@ class _SocialButton extends StatelessWidget {
           const SizedBox(
             width: 18,
             height: 18,
-            child: CircularProgressIndicator(strokeWidth: 2),
+            child: CircularProgressIndicator(
+                strokeWidth: 2, color: TwColors.primary),
           )
         else
           icon,
         const SizedBox(width: 12),
         Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF1A1A2E),
+          style: GoogleFonts.spaceGrotesk(
+            color: TwColors.onBg,
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
@@ -482,13 +490,14 @@ class _PixelScenePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final groundY = size.height * 0.65;
 
-    final groundPaint = Paint()..color = const Color(0xFF4CAF50);
+    // Dark ground
+    final groundPaint = Paint()..color = const Color(0xFF1A0A2E);
     canvas.drawRect(
       Rect.fromLTWH(0, groundY, size.width, size.height - groundY),
       groundPaint,
     );
 
-    final darkGrass = Paint()..color = const Color(0xFF45A049);
+    final darkGrass = Paint()..color = const Color(0xFF150826);
     const tileW = 24.0;
     const tileH = 24.0;
     for (double x = 0; x < size.width; x += tileW) {
@@ -496,10 +505,7 @@ class _PixelScenePainter extends CustomPainter {
         final ix = (x / tileW).floor();
         final iy = ((y - groundY) / tileH).floor();
         if ((ix + iy) % 2 == 0) {
-          canvas.drawRect(
-            Rect.fromLTWH(x, y, tileW, tileH),
-            darkGrass,
-          );
+          canvas.drawRect(Rect.fromLTWH(x, y, tileW, tileH), darkGrass);
         }
       }
     }
@@ -512,10 +518,10 @@ class _PixelScenePainter extends CustomPainter {
 
     final charY = groundY - 30;
     final bounce = 2 * sin(tick * pi * 2);
-    _drawPixelChar(canvas, size.width * 0.5, charY + bounce,
-        const Color(0xFF1B76F2), true);
     _drawPixelChar(
-        canvas, size.width * 0.25, charY + 10, const Color(0xFFEF5350), false);
+        canvas, size.width * 0.5, charY + bounce, TwColors.primary, true);
+    _drawPixelChar(
+        canvas, size.width * 0.25, charY + 10, TwColors.secondary, false);
     _drawPixelChar(canvas, size.width * 0.75, charY - 5,
         const Color(0xFFFFC107), false);
 
@@ -527,79 +533,53 @@ class _PixelScenePainter extends CustomPainter {
 
   void _drawPixelTree(Canvas canvas, double x, double y, double scale) {
     final s = scale;
-    final trunkPaint = Paint()..color = const Color(0xFF795548);
+    final trunkPaint = Paint()..color = const Color(0xFF3D2B1F);
     canvas.drawRect(
-      Rect.fromLTWH(x - 3 * s, y + 8 * s, 6 * s, 16 * s),
-      trunkPaint,
-    );
-    final foliagePaint = Paint()..color = const Color(0xFF2E7D32);
+        Rect.fromLTWH(x - 3 * s, y + 8 * s, 6 * s, 16 * s), trunkPaint);
+    final foliagePaint = Paint()..color = const Color(0xFF1A3A1A);
     canvas.drawRect(
-      Rect.fromLTWH(x - 14 * s, y - 12 * s, 28 * s, 24 * s),
-      foliagePaint,
-    );
+        Rect.fromLTWH(x - 14 * s, y - 12 * s, 28 * s, 24 * s), foliagePaint);
     canvas.drawRect(
-      Rect.fromLTWH(x - 10 * s, y - 20 * s, 20 * s, 12 * s),
-      foliagePaint,
-    );
+        Rect.fromLTWH(x - 10 * s, y - 20 * s, 20 * s, 12 * s), foliagePaint);
   }
 
   void _drawPixelHouse(Canvas canvas, double x, double groundY) {
-    final wallPaint = Paint()..color = const Color(0xFFEFC9AF);
-    canvas.drawRect(
-      Rect.fromLTWH(x - 20, groundY - 30, 40, 30),
-      wallPaint,
-    );
-    final roofPaint = Paint()..color = const Color(0xFFD84315);
-    canvas.drawRect(
-      Rect.fromLTWH(x - 24, groundY - 42, 48, 14),
-      roofPaint,
-    );
-    final doorPaint = Paint()..color = const Color(0xFF795548);
-    canvas.drawRect(
-      Rect.fromLTWH(x - 5, groundY - 18, 10, 18),
-      doorPaint,
-    );
+    final wallPaint = Paint()..color = const Color(0xFF2A1F3D);
+    canvas.drawRect(Rect.fromLTWH(x - 20, groundY - 30, 40, 30), wallPaint);
+    final roofPaint = Paint()..color = TwColors.primaryDim;
+    canvas.drawRect(Rect.fromLTWH(x - 24, groundY - 42, 48, 14), roofPaint);
+    final doorPaint = Paint()..color = const Color(0xFF3D2B1F);
+    canvas.drawRect(Rect.fromLTWH(x - 5, groundY - 18, 10, 18), doorPaint);
   }
 
   void _drawPixelChar(
       Canvas canvas, double x, double y, Color color, bool hasCrown) {
     canvas.drawRect(
-      Rect.fromLTWH(x - 6, y, 12, 14),
-      Paint()..color = color,
-    );
+        Rect.fromLTWH(x - 6, y, 12, 14), Paint()..color = color);
     canvas.drawRect(
-      Rect.fromLTWH(x - 5, y - 10, 10, 10),
-      Paint()..color = color,
-    );
+        Rect.fromLTWH(x - 5, y - 10, 10, 10), Paint()..color = color);
     canvas.drawRect(
-      Rect.fromLTWH(x - 5, y - 10, 3, 2),
-      Paint()..color = Colors.white,
-    );
+        Rect.fromLTWH(x - 5, y - 10, 3, 2), Paint()..color = Colors.white24);
     canvas.drawRect(
-      Rect.fromLTWH(x + 2, y - 10, 3, 2),
-      Paint()..color = Colors.white,
-    );
+        Rect.fromLTWH(x + 2, y - 10, 3, 2), Paint()..color = Colors.white24);
     if (hasCrown) {
       canvas.drawRect(
-        Rect.fromLTWH(x - 6, y - 15, 12, 4),
-        Paint()..color = const Color(0xFFFFC107),
-      );
+          Rect.fromLTWH(x - 6, y - 15, 12, 4),
+          Paint()..color = const Color(0xFFFFC107));
       canvas.drawRect(
-        Rect.fromLTWH(x - 6, y - 18, 3, 3),
-        Paint()..color = const Color(0xFFFFC107),
-      );
+          Rect.fromLTWH(x - 6, y - 18, 3, 3),
+          Paint()..color = const Color(0xFFFFC107));
       canvas.drawRect(
-        Rect.fromLTWH(x + 3, y - 18, 3, 3),
-        Paint()..color = const Color(0xFFFFC107),
-      );
+          Rect.fromLTWH(x + 3, y - 18, 3, 3),
+          Paint()..color = const Color(0xFFFFC107));
     }
   }
 
   void _drawConnectionLine(
       Canvas canvas, double x1, double y1, double x2, double y2) {
     final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.3)
-      ..strokeWidth = 2;
+      ..color = TwColors.primary.withValues(alpha: 0.4)
+      ..strokeWidth = 1.5;
     const dashLen = 6.0;
     const gapLen = 4.0;
     final dx = x2 - x1;

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:tinyworld_app/core/theme/styles.dart';
 import 'package:tinyworld_app/features/onboarding/onboarding_controller.dart';
 import 'package:tinyworld_app/shared/widgets/onboarding_scaffold.dart';
 
@@ -39,7 +41,7 @@ class _OrientationScreenState extends ConsumerState<OrientationScreen> {
           sexualOrientation: _orientation,
           gender: widget.gender,
         );
-    if (ok && mounted) context.go('/onboarding/liveness');
+    if (ok && mounted) context.push('/onboarding/liveness');
   }
 
   @override
@@ -50,10 +52,6 @@ class _OrientationScreenState extends ConsumerState<OrientationScreen> {
       totalSteps: 9,
       title: 'Orientação sexual',
       subtitle: 'Usamos isso para encontrar melhores matches.',
-      onBack: () => context.go('/onboarding/birthdate', extra: {
-        'name': widget.name,
-        'gender': widget.gender,
-      }),
       bottom: OnboardingButton(
         onPressed: _submit,
         isLoading: state.isLoading,
@@ -74,25 +72,30 @@ class _OrientationScreenState extends ConsumerState<OrientationScreen> {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
+                        horizontal: 18, vertical: 11),
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? const Color(0xFF1B76F2)
-                          : const Color(0xFFF5F7FA),
-                      borderRadius: BorderRadius.circular(20),
+                      gradient: isSelected ? TwGradients.primary : null,
+                      color: isSelected ? null : TwColors.card,
+                      borderRadius: BorderRadius.circular(TwRadius.pill),
                       border: Border.all(
-                        color: isSelected
-                            ? const Color(0xFF1B76F2)
-                            : const Color(0xFFE5E7EB),
+                        color: isSelected ? TwColors.primary : TwColors.border,
                       ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: TwColors.primary.withValues(alpha: 0.25),
+                                blurRadius: 10,
+                              )
+                            ]
+                          : null,
                     ),
                     child: Text(
                       o.$1,
-                      style: TextStyle(
-                        color:
-                            isSelected ? Colors.white : const Color(0xFF6B7280),
-                        fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.w400,
+                      style: GoogleFonts.spaceGrotesk(
+                        color: isSelected ? Colors.white : TwColors.onSurface,
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
                         fontSize: 13,
                       ),
                     ),
@@ -106,12 +109,15 @@ class _OrientationScreenState extends ConsumerState<OrientationScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(10),
+                  color: TwColors.error.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(TwRadius.md),
+                  border: Border.all(
+                      color: TwColors.error.withValues(alpha: 0.3)),
                 ),
                 child: Text(
                   state.error!,
-                  style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+                  style: GoogleFonts.spaceGrotesk(
+                      color: TwColors.error, fontSize: 13),
                 ),
               ),
             ],

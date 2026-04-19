@@ -16,6 +16,8 @@ class _NameScreenState extends State<NameScreen> {
   void initState() {
     super.initState();
     _focus.requestFocus();
+    // Rebuild whenever text changes so the button enables/disables correctly.
+    _ctrl.addListener(() => setState(() {}));
   }
 
   @override
@@ -36,7 +38,7 @@ class _NameScreenState extends State<NameScreen> {
       showBack: false,
       bottom: OnboardingButton(
         onPressed: valid
-            ? () => context.go('/onboarding/gender', extra: _ctrl.text.trim())
+            ? () => context.push('/onboarding/gender', extra: _ctrl.text.trim())
             : null,
         child: const Text('Continuar'),
       ),
@@ -49,7 +51,7 @@ class _NameScreenState extends State<NameScreen> {
           focusNode: _focus,
           onSubmitted: (_) {
             if (_ctrl.text.trim().isNotEmpty) {
-              context.go('/onboarding/gender', extra: _ctrl.text.trim());
+              context.push('/onboarding/gender', extra: _ctrl.text.trim());
             }
           },
         ),

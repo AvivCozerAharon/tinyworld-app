@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:tinyworld_app/core/api/rest_client.dart';
 import 'package:tinyworld_app/core/api/sse_client.dart';
 import 'package:tinyworld_app/core/storage/local_storage.dart';
+import 'package:tinyworld_app/core/theme/styles.dart';
 import 'package:tinyworld_app/features/chats/chats_controller.dart';
 import 'package:tinyworld_app/features/chats/widgets/humanize_button.dart';
 import 'package:tinyworld_app/features/chats/widgets/typing_indicator.dart';
@@ -20,24 +22,35 @@ class _ChatMsg {
   final int? interesse;
   final int? engajamento;
   final bool? continua;
+  String? reaction;
 
-  const _ChatMsg({
+  _ChatMsg({
     required this.agentId,
     required this.text,
     required this.isMe,
     required this.senderLabel,
-    this.senderColor = const Color(0xFF1B76F2),
+    this.senderColor = TwColors.primary,
     this.interesse,
     this.engajamento,
     this.continua,
   });
 }
 
+const _reactionEmojis = ['❤️', '😄', '😮', '🔥', '😂', '👏'];
+
+const _compatPhrases = [
+  (0, 30, 'Conexão fraca — mas toda amizade começa em algum lugar.'),
+  (30, 60, 'Boa energia! Vocês têm bastante em comum.'),
+  (60, 80, 'Ótima química! Essa poderia ser uma amizade incrível.'),
+  (80, 101, 'Conexão rara! Vocês foram feitos um para o outro.'),
+];
+
 class ConversationScreen extends ConsumerStatefulWidget {
   final String simId;
   final bool isLive;
 
-  const ConversationScreen({super.key, required this.simId, this.isLive = false});
+  const ConversationScreen(
+      {super.key, required this.simId, this.isLive = false});
 
   @override
   ConsumerState<ConversationScreen> createState() => _ConversationScreenState();
@@ -50,7 +63,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
   bool _showTyping = false;
   late Alignment _typingSide;
   String _typingLabel = '';
-  Color _typingColor = const Color(0xFF1B76F2);
+  Color _typingColor = TwColors.primary;
 
   final ScrollController _scrollCtrl = ScrollController();
   final TextEditingController _inputCtrl = TextEditingController();
@@ -58,12 +71,13 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
   Stream? _sseStream;
 
   String? _userId;
+  String? _token;
   String? _userAId;
   String? _userBId;
   String _labelMe = 'Você';
   String _labelOther = 'Amigo';
-  final Color _colorMe = const Color(0xFF1B76F2);
-  final Color _colorOther = const Color(0xFFFF6B6B);
+  static const _colorMe = TwColors.primary;
+  static const _colorOther = TwColors.secondary;
 
   // streaming token state
   String _streamingAgentId = '';
@@ -74,9 +88,14 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
   double? _scoreB;
   int? _completedTurns;
   bool? _earlyStopped;
+  int _totalTurns = 0;
 
   List<Map<String, dynamic>> _pendingTurns = [];
   bool _disposed = false;
+  bool _skipping = false;
+
+  // Speed: 1.0, 1.5, 2.0
+  double _speed = 1.0;
 
   String _labelFor(String agentId) =>
       agentId == _userId ? _labelMe : _labelOther;
@@ -97,6 +116,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
 
   Future<void> _loadAndReplay() async {
     _userId = await localStorage.getUserId();
+    _token = await localStorage.getIdToken();
     try {
       final resp = await apiClient.get(
         '/chats/${widget.simId}',
@@ -127,6 +147,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
       }
 
       _pendingTurns = turns.cast<Map<String, dynamic>>();
+      _totalTurns = _pendingTurns.length;
       _connectWebSocket();
       _startReplay();
       _checkHumanizedAndLoadHistory();
@@ -141,7 +162,8 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
     try {
       final chatListResp = await apiClient.get('/chats');
       final chatList = chatListResp.data as List;
-      final chat = chatList.where((c) => c['sim_id'] == widget.simId).firstOrNull;
+      final chat =
+          chatList.where((c) => c['sim_id'] == widget.simId).firstOrNull;
       if (chat != null && chat['humanize_state'] == 'humanized') {
         _loadHumanMessages();
       }
@@ -153,8 +175,8 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
       final resp = await apiClient.get('/chats/${widget.simId}/messages');
       final messages = resp.data as List;
       if (messages.isEmpty || !mounted) return;
-      final humanMsgs = messages.where((m) => m['event'] == 'chat.message').toList();
-      if (humanMsgs.isEmpty) return;
+      final humanMsgs =
+          messages.where((m) => m['event'] == 'chat.message').toList();
       setState(() {
         for (final m in humanMsgs) {
           final isMe = m['user_id'] == _userId;
@@ -169,6 +191,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
         _mode = _ViewMode.humanized;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+      if (humanMsgs.isEmpty) _showIcebreakers();
     } catch (_) {}
   }
 
@@ -190,7 +213,38 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
   Future<void> _replayNextTurn(int index) async {
     if (_disposed || index >= _pendingTurns.length) {
       if (!_disposed && mounted) {
-        setState(() => _mode = _ViewMode.replayDone);
+        setState(() {
+          _showTyping = false;
+          _mode = _ViewMode.replayDone;
+        });
+      }
+      return;
+    }
+
+    if (_skipping) {
+      // Add remaining turns instantly
+      for (int i = index; i < _pendingTurns.length; i++) {
+        final t = _pendingTurns[i];
+        final agentId = t['agent_id'] as String? ?? '';
+        _messages.add(_ChatMsg(
+          agentId: agentId,
+          text: t['resposta'] as String? ?? '',
+          isMe: agentId == _userId,
+          senderLabel: _labelFor(agentId),
+          senderColor: _colorFor(agentId),
+          interesse: t['interesse'] as int?,
+          engajamento: t['engajamento'] as int?,
+          continua: t['continua'] as bool?,
+        ));
+      }
+      if (!_disposed && mounted) {
+        setState(() {
+          _showTyping = false;
+          _skipping = false;
+          _mode = _ViewMode.replayDone;
+        });
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => _scrollToBottom());
       }
       return;
     }
@@ -207,9 +261,11 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
     });
     _scrollToBottom();
 
-    final delayMs = turn['typing_indicator_ms'] as int? ??
-        turn['delay_ms'] as int? ?? 800;
-    await Future.delayed(Duration(milliseconds: delayMs.clamp(400, 2500)));
+    final rawDelay = turn['typing_indicator_ms'] as int? ??
+        turn['delay_ms'] as int? ??
+        800;
+    final delayMs = (rawDelay / _speed).round().clamp(250, 3000);
+    await Future.delayed(Duration(milliseconds: delayMs));
 
     if (_disposed || !mounted) return;
 
@@ -228,12 +284,14 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
     });
     _scrollToBottom();
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    final pauseMs = (500 / _speed).round().clamp(150, 800);
+    await Future.delayed(Duration(milliseconds: pauseMs));
     _replayNextTurn(index + 1);
   }
 
   void _startLiveStream() async {
     _userId = await localStorage.getUserId();
+    _token = await localStorage.getIdToken();
     setState(() => _mode = _ViewMode.liveStreaming);
     _sseStream = sseClient.post('/debug/simulate', data: {
       'user_a_id': _userId,
@@ -274,6 +332,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
           setState(() {
             _streamingAgentId = '';
             _streamingText = '';
+            _totalTurns++;
             _messages.add(_ChatMsg(
               agentId: agentId,
               text: turn['resposta'] as String? ?? '',
@@ -300,15 +359,83 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
     });
   }
 
+  Future<void> _showIcebreakers() async {
+    if (!mounted) return;
+    final icebreakers = await ref
+        .read(chatsControllerProvider.notifier)
+        .getIcebreakers(widget.simId);
+    if (!mounted || icebreakers.isEmpty) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: TwColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(TwRadius.xl)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(
+                  color: TwColors.border,
+                  borderRadius: BorderRadius.circular(TwRadius.pill),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text('Sugestões para começar',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text('Toque para usar como mensagem',
+                style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 16),
+            ...icebreakers.map((msg) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: GestureDetector(
+                onTap: () {
+                  _inputCtrl.text = msg;
+                  _inputCtrl.selection = TextSelection.fromPosition(
+                    TextPosition(offset: msg.length),
+                  );
+                  Navigator.of(ctx).pop();
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: TwColors.card,
+                    borderRadius: BorderRadius.circular(TwRadius.md),
+                    border: Border.all(color: TwColors.border),
+                  ),
+                  child: Text(msg,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: TwColors.onBg,
+                      )),
+                ),
+              ),
+            )),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _connectWebSocket() {
     final wsBase = apiClient.baseUrl.replaceFirst('http', 'ws');
+    final token = _token ?? '';
     _wsChannel = WebSocketChannel.connect(
-      Uri.parse('$wsBase/ws/chat/${widget.simId}?user_id=$_userId'),
+      Uri.parse(
+          '$wsBase/ws/chat/${widget.simId}?token=${Uri.encodeComponent(token)}'),
     );
     _wsChannel!.stream.cast<String>().listen((raw) {
       final event = jsonDecode(raw) as Map<String, dynamic>;
       if (event['event'] == 'humanize.activated') {
         setState(() => _mode = _ViewMode.humanized);
+        _showIcebreakers();
       } else if (event['event'] == 'chat.message') {
         if (event['user_id'] != _userId) {
           setState(() => _messages.add(_ChatMsg(
@@ -351,6 +478,72 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
     });
   }
 
+  void _skipReplay() {
+    setState(() => _skipping = true);
+  }
+
+  void _cycleSpeed() {
+    setState(() {
+      if (_speed == 1.0) {
+        _speed = 1.5;
+      } else if (_speed == 1.5) {
+        _speed = 2.0;
+      } else {
+        _speed = 1.0;
+      }
+    });
+  }
+
+  Future<void> _showReactionPicker(int msgIndex) async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: TwColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(TwRadius.xl)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Reação',
+              style: GoogleFonts.spaceGrotesk(
+                color: TwColors.onBg,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: _reactionEmojis.map((e) {
+                return GestureDetector(
+                  onTap: () => Navigator.pop(context, e),
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: TwColors.surface,
+                      borderRadius: BorderRadius.circular(TwRadius.md),
+                    ),
+                    child: Center(
+                      child: Text(e, style: const TextStyle(fontSize: 24)),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (selected != null && mounted) {
+      setState(() => _messages[msgIndex].reaction = selected);
+    }
+  }
+
   @override
   void dispose() {
     _disposed = true;
@@ -366,41 +559,10 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
     final chat =
         chatsState.chats.where((c) => c.simId == widget.simId).firstOrNull;
     final humanizeState = chat?.humanizeState ?? 'simulated';
-    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _mode == _ViewMode.humanized ? _labelOther : 'Conversa simulada',
-              style: const TextStyle(fontSize: 16),
-            ),
-            Text(
-              _mode == _ViewMode.replaying
-                  ? 'Assistindo conversa...'
-                  : _mode == _ViewMode.liveStreaming
-                      ? 'Ao vivo'
-                      : _mode == _ViewMode.humanized
-                          ? 'Conexão humana'
-                          : '',
-              style: TextStyle(
-                fontSize: 11,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          if (_mode == _ViewMode.replayDone)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: HumanizeButton(
-                  simId: widget.simId, currentState: humanizeState),
-            ),
-        ],
-      ),
+      backgroundColor: TwColors.bg,
+      appBar: _buildAppBar(humanizeState),
       body: Column(
         children: [
           Expanded(
@@ -412,8 +574,8 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
                   (_streamingText.isNotEmpty ? 1 : 0) +
                   1,
               itemBuilder: (_, i) {
-                final extras =
-                    (_showTyping ? 1 : 0) + (_streamingText.isNotEmpty ? 1 : 0);
+                final extras = (_showTyping ? 1 : 0) +
+                    (_streamingText.isNotEmpty ? 1 : 0);
                 if (i == _messages.length + extras) {
                   if (_mode == _ViewMode.replayDone ||
                       _mode == _ViewMode.humanized) {
@@ -428,22 +590,72 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
                     i == _messages.length + (_showTyping ? 1 : 0)) {
                   return _buildStreamingBubble();
                 }
-                final msg = _messages[i];
-                return _buildMessage(msg, i);
+                return _buildMessage(_messages[i], i);
               },
             ),
           ),
-          if (_mode == _ViewMode.humanized) _buildInputBar(colorScheme),
+          if (_mode == _ViewMode.humanized) _buildInputBar(),
         ],
       ),
     );
   }
 
-  // Extracts the value of "resposta" from a partial JSON string being streamed.
-  // Returns null if the field hasn't started yet.
+  AppBar _buildAppBar(String humanizeState) {
+    return AppBar(
+      backgroundColor: TwColors.bg,
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _mode == _ViewMode.humanized ? _labelOther : 'Conversa simulada',
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: TwColors.onBg,
+            ),
+          ),
+          Text(
+            _mode == _ViewMode.replaying
+                ? '${_messages.length} / $_totalTurns turnos'
+                : _mode == _ViewMode.liveStreaming
+                    ? 'Ao vivo'
+                    : _mode == _ViewMode.humanized
+                        ? 'Conexão humana'
+                        : '',
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 11,
+              color: TwColors.muted,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        if (_mode == _ViewMode.replaying || _mode == _ViewMode.liveStreaming)
+          _SpeedButton(speed: _speed, onTap: _cycleSpeed),
+        if (_mode == _ViewMode.replaying)
+          TextButton(
+            onPressed: _skipReplay,
+            child: Text(
+              'Pular',
+              style: GoogleFonts.spaceGrotesk(
+                color: TwColors.primary,
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        if (_mode == _ViewMode.replayDone)
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: HumanizeButton(
+                simId: widget.simId, currentState: humanizeState),
+          ),
+      ],
+    );
+  }
+
   Widget _buildStreamingBubble() {
     final isMe = _streamingAgentId == _userId;
-    final colorScheme = Theme.of(context).colorScheme;
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -454,52 +666,12 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
           crossAxisAlignment:
               isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 8, right: 8, bottom: 3),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 7,
-                    height: 7,
-                    decoration: BoxDecoration(
-                      color: _colorFor(_streamingAgentId),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    _labelFor(_streamingAgentId),
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: isMe
-                    ? colorScheme.primary.withValues(alpha: 0.85)
-                    : colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(16),
-                  topRight: const Radius.circular(16),
-                  bottomLeft: Radius.circular(isMe ? 16 : 4),
-                  bottomRight: Radius.circular(isMe ? 4 : 16),
-                ),
-              ),
-              child: Text(
-                _streamingText,
-                style: TextStyle(
-                  color: isMe ? colorScheme.onPrimary : colorScheme.onSurface,
-                  fontSize: 14,
-                  height: 1.4,
-                ),
-              ),
+            _buildSenderLabel(_labelFor(_streamingAgentId),
+                _colorFor(_streamingAgentId)),
+            _buildBubble(
+              text: _streamingText,
+              isMe: isMe,
+              isStreaming: true,
             ),
           ],
         ),
@@ -514,27 +686,27 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          color: TwColors.card,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(
-                _typingSide == Alignment.centerRight ? 16 : 4),
-            bottomRight: Radius.circular(
-                _typingSide == Alignment.centerRight ? 4 : 16),
+            bottomLeft:
+                Radius.circular(_typingSide == Alignment.centerRight ? 16 : 4),
+            bottomRight:
+                Radius.circular(_typingSide == Alignment.centerRight ? 4 : 16),
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(_typingLabel,
-                style: TextStyle(
+                style: GoogleFonts.spaceGrotesk(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                   color: _typingColor,
                 )),
             const SizedBox(width: 8),
-            const TypingIndicator(dotColor: Color(0xFF888888)),
+            const TypingIndicator(dotColor: TwColors.muted),
           ],
         ),
       ),
@@ -542,66 +714,90 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
   }
 
   Widget _buildMessage(_ChatMsg msg, int index) {
-    final colorScheme = Theme.of(context).colorScheme;
     final isMe = msg.isMe;
 
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints:
-            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
-        margin: const EdgeInsets.symmetric(vertical: 3, horizontal: 12),
-        child: Column(
-          crossAxisAlignment:
-              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 8, right: 8, bottom: 3),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 7,
-                    height: 7,
+    return GestureDetector(
+      onLongPress: () => _showReactionPicker(index),
+      child: Align(
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.78),
+          margin: const EdgeInsets.symmetric(vertical: 3, horizontal: 12),
+          child: Column(
+            crossAxisAlignment:
+                isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            children: [
+              _buildSenderLabel(msg.senderLabel, msg.senderColor),
+              _buildBubble(text: msg.text, isMe: isMe),
+              if (msg.reaction != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2, left: 4, right: 4),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: msg.senderColor,
-                      shape: BoxShape.circle,
+                      color: TwColors.card,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: TwColors.border),
                     ),
+                    child: Text(msg.reaction!,
+                        style: const TextStyle(fontSize: 14)),
                   ),
-                  const SizedBox(width: 5),
-                  Text(msg.senderLabel,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: colorScheme.onSurfaceVariant,
-                      )),
-                ],
-              ),
-            ),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: isMe
-                    ? colorScheme.primary
-                    : colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(16),
-                  topRight: const Radius.circular(16),
-                  bottomLeft: Radius.circular(isMe ? 16 : 4),
-                  bottomRight: Radius.circular(isMe ? 4 : 16),
                 ),
-              ),
-              child: Text(
-                msg.text,
-                style: TextStyle(
-                  color: isMe ? colorScheme.onPrimary : colorScheme.onSurface,
-                  fontSize: 14,
-                  height: 1.4,
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSenderLabel(String label, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8, right: 8, bottom: 3),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 5),
+          Text(label,
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: TwColors.muted,
+              )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBubble(
+      {required String text, required bool isMe, bool isStreaming = false}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        gradient: isMe ? TwGradients.primary : null,
+        color: isMe ? null : TwColors.card,
+        borderRadius: BorderRadius.only(
+          topLeft: const Radius.circular(16),
+          topRight: const Radius.circular(16),
+          bottomLeft: Radius.circular(isMe ? 16 : 4),
+          bottomRight: Radius.circular(isMe ? 4 : 16),
+        ),
+        border: isMe
+            ? null
+            : Border.all(color: TwColors.border, width: 0.5),
+      ),
+      child: Text(
+        text,
+        style: GoogleFonts.spaceGrotesk(
+          color: isMe ? Colors.white : TwColors.onBg,
+          fontSize: 14,
+          height: 1.4,
         ),
       ),
     );
@@ -609,118 +805,261 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
 
   Widget _buildResultCard(BuildContext context) {
     if (_compatibility == null) return const SizedBox.shrink();
-    final colorScheme = Theme.of(context).colorScheme;
     final pct = (_compatibility! * 100).toInt();
+
+    final phrase = _compatPhrases
+        .where((p) => pct >= p.$1 && pct < p.$2)
+        .map((p) => p.$3)
+        .firstOrNull;
+
+    final ringColor = pct > 70
+        ? TwColors.success
+        : pct > 40
+            ? TwColors.warning
+            : TwColors.error;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+        gradient: const LinearGradient(
+          colors: [TwColors.card, TwColors.cardAlt],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(TwRadius.xl),
+        border: Border.all(color: TwColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: TwColors.primary.withValues(alpha: 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          Text(
-            '$pct%',
-            style: TextStyle(
-              fontSize: 42,
-              fontWeight: FontWeight.w800,
-              color: pct > 60
-                  ? const Color(0xFF4CAF50)
-                  : pct > 30
-                      ? Colors.orange
-                      : Colors.red,
+          // Gradient header band
+          Container(
+            height: 4,
+            decoration: const BoxDecoration(
+              gradient: TwGradients.accent,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(TwRadius.xl)),
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Compatibilidade',
-            style: TextStyle(
-              fontSize: 14,
-              color: colorScheme.onSurfaceVariant,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+            child: Column(
+              children: [
+                // Compatibility ring
+                SizedBox(
+                  width: 90,
+                  height: 90,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SizedBox(
+                        width: 90,
+                        height: 90,
+                        child: CircularProgressIndicator(
+                          value: _compatibility,
+                          strokeWidth: 6,
+                          backgroundColor: TwColors.border,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(ringColor),
+                          strokeCap: StrokeCap.round,
+                        ),
+                      ),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '$pct%',
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              color: ringColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Compatibilidade',
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 12,
+                    color: TwColors.muted,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                if (phrase != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    phrase,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 13,
+                      color: TwColors.onSurface,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                // Score bars
+                Row(
+                  children: [
+                    _buildScoreBar('Você', _scoreA, _colorMe),
+                    const SizedBox(width: 12),
+                    _buildScoreBar(_labelOther, _scoreB, _colorOther),
+                  ],
+                ),
+                if (_completedTurns != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: TwColors.surface,
+                      borderRadius:
+                          BorderRadius.circular(TwRadius.pill),
+                    ),
+                    child: Text(
+                      '$_completedTurns turnos${_earlyStopped == true ? ' · encerrado cedo' : ''}',
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 11,
+                        color: TwColors.muted,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildScoreChip('Você', _scoreA, colorScheme),
-              _buildScoreChip(_labelOther, _scoreB, colorScheme),
-            ],
-          ),
-          if (_completedTurns != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              '$_completedTurns turnos${_earlyStopped == true ? ' · encerrado cedo' : ''}',
-              style:
-                  TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
-            ),
-          ],
         ],
       ),
     );
   }
 
-  Widget _buildScoreChip(String label, double? score, ColorScheme cs) {
-    return Column(
-      children: [
-        Text(label,
-            style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
-        const SizedBox(height: 4),
-        Text(
-          score != null ? '${(score * 100).toInt()}' : '--',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-            color: cs.primary,
+  Widget _buildScoreBar(String label, double? score, Color color) {
+    final v = score ?? 0.0;
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(label,
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 11,
+                    color: TwColors.muted,
+                  )),
+              Text(
+                '${(v * 100).toInt()}',
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
+          const SizedBox(height: 4),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: v,
+              minHeight: 6,
+              backgroundColor: TwColors.border,
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildInputBar(ColorScheme colorScheme) {
+  Widget _buildInputBar() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 24),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border(
-          top: BorderSide(color: colorScheme.outlineVariant, width: 0.5),
-        ),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+      decoration: const BoxDecoration(
+        color: TwColors.surface,
+        border: Border(top: BorderSide(color: TwColors.border, width: 0.5)),
       ),
       child: Row(
         children: [
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest,
+                color: TwColors.card,
                 borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: TwColors.border),
               ),
               child: TextField(
                 controller: _inputCtrl,
-                decoration: const InputDecoration(
+                style: GoogleFonts.spaceGrotesk(
+                    color: TwColors.onBg, fontSize: 14),
+                decoration: InputDecoration(
                   hintText: 'Escreva uma mensagem...',
+                  hintStyle:
+                      GoogleFonts.spaceGrotesk(color: TwColors.muted, fontSize: 14),
                   border: InputBorder.none,
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 10),
                 ),
                 onSubmitted: (_) => _sendMessage(),
               ),
             ),
           ),
           const SizedBox(width: 8),
-          CircleAvatar(
-            backgroundColor: colorScheme.primary,
-            child: IconButton(
-              onPressed: _sendMessage,
-              icon: Icon(Icons.send, size: 18, color: colorScheme.onPrimary),
+          GestureDetector(
+            onTap: _sendMessage,
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                gradient: TwGradients.primary,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.send, size: 18, color: Colors.white),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SpeedButton extends StatelessWidget {
+  final double speed;
+  final VoidCallback onTap;
+
+  const _SpeedButton({required this.speed, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: TwColors.primary.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(TwRadius.pill),
+          border: Border.all(
+            color: TwColors.primary.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Text(
+          '${speed == speed.toInt() ? speed.toInt() : speed}×',
+          style: GoogleFonts.spaceGrotesk(
+            color: TwColors.primary,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
     );
   }

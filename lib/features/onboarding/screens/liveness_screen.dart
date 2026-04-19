@@ -4,8 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tinyworld_app/core/api/rest_client.dart';
+import 'package:tinyworld_app/core/theme/styles.dart';
 import 'package:tinyworld_app/features/onboarding/onboarding_controller.dart';
 import 'package:tinyworld_app/shared/widgets/onboarding_scaffold.dart';
 
@@ -20,6 +22,7 @@ class _LivenessScreenState extends ConsumerState<LivenessScreen> {
   bool _isCapturing = false;
   bool _cameraFailed = false;
   String? _error;
+  Uint8List? _capturedBytes;
 
   @override
   void initState() {
@@ -69,7 +72,10 @@ class _LivenessScreenState extends ConsumerState<LivenessScreen> {
         }
         bytes = await picked.readAsBytes();
       }
-      await _submit(bytes);
+      setState(() {
+        _capturedBytes = bytes;
+        _isCapturing = false;
+      });
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -93,7 +99,11 @@ class _LivenessScreenState extends ConsumerState<LivenessScreen> {
         setState(() => _isCapturing = false);
         return;
       }
-      await _submit(await picked.readAsBytes());
+      final bytes = await picked.readAsBytes();
+      setState(() {
+        _capturedBytes = bytes;
+        _isCapturing = false;
+      });
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -124,7 +134,7 @@ class _LivenessScreenState extends ConsumerState<LivenessScreen> {
           .read(onboardingControllerProvider.notifier)
           .setAppearance(data['appearance'] as Map<String, dynamic>);
       if (mounted) {
-        context.go('/onboarding/avatar', extra: {
+        context.push('/onboarding/avatar', extra: {
           'variations': data['variations'],
           'appearance': data['appearance'],
         });
@@ -146,11 +156,14 @@ class _LivenessScreenState extends ConsumerState<LivenessScreen> {
   @override
   Widget build(BuildContext context) {
     final cameraReady = _cam?.value.isInitialized ?? false;
+    final confirming = _capturedBytes != null && !_isCapturing;
     return OnboardingScaffold(
       step: 5,
       totalSteps: 9,
       title: 'Verificação',
-      subtitle: 'Precisamos confirmar que você é real. Uma selfie basta.',
+      subtitle: confirming
+          ? 'Boa foto? Confirme para continuar.'
+          : 'Precisamos confirmar que você é real. Uma selfie basta.',
       child: Column(
         children: [
           const SizedBox(height: 16),
@@ -159,65 +172,89 @@ class _LivenessScreenState extends ConsumerState<LivenessScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF5F7FA),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                  color: TwColors.card,
+                  borderRadius: BorderRadius.circular(TwRadius.xl),
+                  border: Border.all(color: TwColors.border),
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(TwRadius.xl),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      if (cameraReady)
+                      // Captured photo preview
+                      if (confirming)
+                        Image.memory(_capturedBytes!, fit: BoxFit.cover)
+                      else if (cameraReady)
                         CameraPreview(_cam!)
                       else
                         Center(
                           child: _cameraFailed
-                              ? const Column(
+                              ? Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.camera_alt_outlined,
-                                        size: 56, color: Color(0xFFD1D5DB)),
-                                    SizedBox(height: 12),
+                                    Container(
+                                      width: 72,
+                                      height: 72,
+                                      decoration: BoxDecoration(
+                                        color: TwColors.surface,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            color: TwColors.border),
+                                      ),
+                                      child: const Icon(
+                                          Icons.camera_alt_outlined,
+                                          size: 32,
+                                          color: TwColors.muted),
+                                    ),
+                                    const SizedBox(height: 12),
                                     Text(
                                       'Câmera não disponível',
-                                      style: TextStyle(
-                                          color: Color(0xFF9CA3AF),
-                                          fontSize: 14),
+                                      style: GoogleFonts.spaceGrotesk(
+                                          color: TwColors.muted, fontSize: 14),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Use a galeria abaixo',
+                                      style: GoogleFonts.spaceGrotesk(
+                                          color: TwColors.muted.withValues(alpha: 0.6),
+                                          fontSize: 12),
                                     ),
                                   ],
                                 )
                               : const CircularProgressIndicator(
-                                  color: Color(0xFF1B76F2)),
+                                  color: TwColors.primary),
                         ),
-                      if (!_isCapturing)
+                      // Face oval overlay (only when camera live)
+                      if (!_isCapturing && !confirming)
                         Center(
                           child: Container(
                             width: 160,
-                            height: 200,
+                            height: 210,
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(80),
                               border: Border.all(
-                                  color: const Color(0xFF1B76F2)
-                                      .withValues(alpha: 0.3),
+                                  color:
+                                      TwColors.primary.withValues(alpha: 0.5),
                                   width: 2),
                             ),
                           ),
                         ),
+                      // Processing overlay
                       if (_isCapturing)
                         Container(
-                          color: Colors.white.withValues(alpha: 0.8),
-                          child: const Center(
+                          color: TwColors.bg.withValues(alpha: 0.85),
+                          child: Center(
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                CircularProgressIndicator(
-                                    color: Color(0xFF1B76F2)),
-                                SizedBox(height: 12),
-                                Text('Verificando...',
-                                    style: TextStyle(
-                                        color: Color(0xFF6B7280),
-                                        fontSize: 14)),
+                                const CircularProgressIndicator(
+                                    color: TwColors.primary),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Verificando...',
+                                  style: GoogleFonts.spaceGrotesk(
+                                      color: TwColors.onSurface, fontSize: 14),
+                                ),
                               ],
                             ),
                           ),
@@ -235,49 +272,141 @@ class _LivenessScreenState extends ConsumerState<LivenessScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(10),
+                  color: TwColors.error.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(TwRadius.md),
+                  border: Border.all(
+                      color: TwColors.error.withValues(alpha: 0.3)),
                 ),
                 child: Text(_error!,
-                    style: TextStyle(color: Colors.red.shade700, fontSize: 13)),
+                    style: GoogleFonts.spaceGrotesk(
+                        color: TwColors.error, fontSize: 13)),
               ),
             ),
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
             child: Column(
               children: [
-                if (cameraReady)
+                if (confirming) ...[
+                  // Confirm button
                   SizedBox(
                     width: double.infinity,
                     height: 52,
-                    child: FilledButton.icon(
-                      onPressed: _isCapturing ? null : _capture,
-                      icon: const Icon(Icons.camera_alt_outlined),
-                      label: const Text('Tirar selfie'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF1B76F2),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: TwGradients.primary,
+                        borderRadius: BorderRadius.circular(TwRadius.lg),
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => _submit(_capturedBytes!),
+                          borderRadius: BorderRadius.circular(TwRadius.lg),
+                          child: Center(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.check_circle_outline,
+                                    color: Colors.white, size: 18),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Usar essa foto',
+                                  style: GoogleFonts.spaceGrotesk(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                if (_cameraFailed || kIsWeb) ...[
                   const SizedBox(height: 10),
+                  // Retake button
                   SizedBox(
                     width: double.infinity,
                     height: 52,
                     child: OutlinedButton.icon(
-                      onPressed: _isCapturing ? null : _pickGallery,
-                      icon: const Icon(Icons.photo_library_outlined),
-                      label: const Text('Escolher da galeria'),
+                      onPressed: () => setState(() => _capturedBytes = null),
+                      icon: const Icon(Icons.camera_alt_outlined,
+                          color: TwColors.primary),
+                      label: Text(
+                        'Tirar novamente',
+                        style: GoogleFonts.spaceGrotesk(
+                            color: TwColors.primary,
+                            fontWeight: FontWeight.w600),
+                      ),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF6B7280),
-                        side: const BorderSide(color: Color(0xFFE5E7EB)),
+                        side: const BorderSide(color: TwColors.border),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
+                            borderRadius:
+                                BorderRadius.circular(TwRadius.lg)),
                       ),
                     ),
                   ),
+                ] else ...[
+                  if (cameraReady)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: TwGradients.primary,
+                          borderRadius: BorderRadius.circular(TwRadius.lg),
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: _isCapturing ? null : _capture,
+                            borderRadius: BorderRadius.circular(TwRadius.lg),
+                            child: Center(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.camera_alt_outlined,
+                                      color: Colors.white, size: 18),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Tirar selfie',
+                                    style: GoogleFonts.spaceGrotesk(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (_cameraFailed || kIsWeb) ...[
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: OutlinedButton.icon(
+                        onPressed: _isCapturing ? null : _pickGallery,
+                        icon: const Icon(Icons.photo_library_outlined,
+                            color: TwColors.primary),
+                        label: Text(
+                          'Escolher da galeria',
+                          style: GoogleFonts.spaceGrotesk(
+                              color: TwColors.primary,
+                              fontWeight: FontWeight.w600),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: TwColors.border),
+                          shape: RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius.circular(TwRadius.lg)),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ],
             ),

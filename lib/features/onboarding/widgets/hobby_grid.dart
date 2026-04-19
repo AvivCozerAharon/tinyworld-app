@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:tinyworld_app/core/theme/styles.dart';
 
 const kAllHobbies = [
   ('Musica', Icons.music_note, Color(0xFFE91E63)),
@@ -59,35 +61,41 @@ class _HobbyGridState extends State<HobbyGrid> {
           onTap: () => _toggle(name),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: isSelected
-                  ? color.withValues(alpha: 0.12)
-                  : const Color(0xFFF5F7FA),
-              borderRadius: BorderRadius.circular(14),
+                  ? color.withValues(alpha: 0.15)
+                  : TwColors.card,
+              borderRadius: BorderRadius.circular(TwRadius.lg),
               border: Border.all(
                 color: isSelected
-                    ? color.withValues(alpha: 0.5)
-                    : const Color(0xFFE5E7EB),
+                    ? color.withValues(alpha: 0.6)
+                    : TwColors.border,
               ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.2),
+                        blurRadius: 8,
+                      )
+                    ]
+                  : null,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(icon,
                     size: 18,
-                    color: isSelected
-                        ? color
-                        : const Color(0xFF9CA3AF)),
+                    color: isSelected ? color : TwColors.muted),
                 const SizedBox(width: 8),
                 Text(
                   name,
-                  style: TextStyle(
+                  style: GoogleFonts.spaceGrotesk(
                     fontSize: 13,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                    color: isSelected
-                        ? const Color(0xFF1A1A2E)
-                        : const Color(0xFF6B7280),
+                    fontWeight:
+                        isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected ? TwColors.onBg : TwColors.onSurface,
                   ),
                 ),
               ],

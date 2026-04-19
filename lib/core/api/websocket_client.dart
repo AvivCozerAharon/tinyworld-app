@@ -3,13 +3,18 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 class SimulationStream {
   final String sessionId;
+  final String token;
   final String baseWsUrl;
   WebSocketChannel? _channel;
 
-  SimulationStream({required this.sessionId, required this.baseWsUrl});
+  SimulationStream({
+    required this.sessionId,
+    required this.token,
+    required this.baseWsUrl,
+  });
 
   Stream<Map<String, dynamic>> connect() {
-    final uri = Uri.parse('$baseWsUrl/ws/stream/$sessionId');
+    final uri = Uri.parse('$baseWsUrl/ws/stream/$sessionId?token=${Uri.encodeComponent(token)}');
     _channel = WebSocketChannel.connect(uri);
     return _channel!.stream
         .cast<String>()
@@ -23,14 +28,18 @@ class SimulationStream {
 
 class ChatStream {
   final String simId;
-  final String userId;
+  final String token;
   final String baseWsUrl;
   WebSocketChannel? _channel;
 
-  ChatStream({required this.simId, required this.userId, required this.baseWsUrl});
+  ChatStream({
+    required this.simId,
+    required this.token,
+    required this.baseWsUrl,
+  });
 
   Stream<Map<String, dynamic>> connect() {
-    final uri = Uri.parse('$baseWsUrl/ws/chat/$simId?user_id=$userId');
+    final uri = Uri.parse('$baseWsUrl/ws/chat/$simId?token=${Uri.encodeComponent(token)}');
     _channel = WebSocketChannel.connect(uri);
     return _channel!.stream
         .cast<String>()

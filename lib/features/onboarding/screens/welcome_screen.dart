@@ -2,6 +2,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:tinyworld_app/core/storage/local_storage.dart';
+import 'package:tinyworld_app/core/theme/styles.dart';
 import 'package:tinyworld_app/features/onboarding/onboarding_controller.dart';
 import 'package:tinyworld_app/features/onboarding/widgets/avatar_preview.dart';
 
@@ -52,7 +55,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
   Widget build(BuildContext context) {
     final state = ref.watch(onboardingControllerProvider);
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFDFB),
+      backgroundColor: TwColors.bg,
       body: SafeArea(
         child: Stack(
           children: [
@@ -81,17 +84,11 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: const LinearGradient(
-                              colors: [
-                                Color(0xFF1B76F2),
-                                Color(0xFF3B82F6),
-                              ],
-                            ),
+                            gradient: TwGradients.accentDiagonal,
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF1B76F2)
-                                    .withValues(alpha: 0.3),
-                                blurRadius: 32,
+                                color: TwColors.primary.withValues(alpha: 0.4),
+                                blurRadius: 40,
                                 spreadRadius: 4,
                               ),
                             ],
@@ -99,14 +96,10 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
                           child: state.avatarUrl != null
                               ? AvatarPreview(
                                   avatarUrl: state.avatarUrl!, size: 140)
-                              : Container(
+                              : const SizedBox(
                                   width: 140,
                                   height: 140,
-                                  decoration: const BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Color(0xFF1B76F2),
-                                  ),
-                                  child: const Icon(Icons.person,
+                                  child: Icon(Icons.person,
                                       size: 60, color: Colors.white24),
                                 ),
                         ),
@@ -124,16 +117,11 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
                           children: [
                             ShaderMask(
                               shaderCallback: (bounds) =>
-                                  const LinearGradient(
-                                colors: [
-                                  Color(0xFF1B76F2),
-                                  Color(0xFF3B82F6),
-                                ],
-                              ).createShader(bounds),
-                              child: const Text(
+                                  TwGradients.accent.createShader(bounds),
+                              child: Text(
                                 'Bem-vindo\nao TinyWorld!',
                                 textAlign: TextAlign.center,
-                                style: TextStyle(
+                                style: GoogleFonts.spaceGrotesk(
                                   fontSize: 32,
                                   fontWeight: FontWeight.w800,
                                   color: Colors.white,
@@ -142,11 +130,11 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
                               ),
                             ),
                             const SizedBox(height: 12),
-                            const Text(
+                            Text(
                               'Seu agente já está pronto\npara explorar o mundo.',
                               textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Color(0xFF6B7280),
+                              style: GoogleFonts.spaceGrotesk(
+                                color: TwColors.onSurface,
                                 fontSize: 15,
                                 height: 1.5,
                               ),
@@ -170,7 +158,10 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
                         child: Material(
                           color: Colors.transparent,
                           child: InkWell(
-                            onTap: () => context.go('/'),
+                            onTap: () async {
+                              await localStorage.setOnboardingDone(true);
+                              if (context.mounted) context.go('/');
+                            },
                             borderRadius: BorderRadius.circular(14),
                             child: const Center(
                               child: Text(

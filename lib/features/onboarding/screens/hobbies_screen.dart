@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:tinyworld_app/core/theme/styles.dart';
 import 'package:tinyworld_app/features/onboarding/onboarding_controller.dart';
 import 'package:tinyworld_app/features/onboarding/widgets/hobby_grid.dart';
 import 'package:tinyworld_app/shared/widgets/onboarding_scaffold.dart';
@@ -19,7 +21,7 @@ class _HobbiesScreenState extends ConsumerState<HobbiesScreen> {
     final ok = await ref
         .read(onboardingControllerProvider.notifier)
         .saveHobbies(_selected);
-    if (ok && mounted) context.go('/onboarding/chat');
+    if (ok && mounted) context.push('/onboarding/chat');
   }
 
   @override
@@ -41,10 +43,8 @@ class _HobbiesScreenState extends ConsumerState<HobbiesScreen> {
               children: [
                 Text(
                   '$count selecionado${count != 1 ? 's' : ''}',
-                  style: TextStyle(
-                    color: count >= 3
-                        ? const Color(0xFF1B76F2)
-                        : const Color(0xFF9CA3AF),
+                  style: GoogleFonts.spaceGrotesk(
+                    color: count >= 3 ? TwColors.primary : TwColors.muted,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -52,7 +52,7 @@ class _HobbiesScreenState extends ConsumerState<HobbiesScreen> {
                 const Spacer(),
                 if (count >= 3)
                   const Icon(Icons.check_circle,
-                      size: 18, color: Color(0xFF1B76F2)),
+                      size: 18, color: TwColors.primary),
               ],
             ),
           ),

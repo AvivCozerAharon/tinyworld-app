@@ -98,7 +98,7 @@ class OnboardingController extends StateNotifier<OnboardingState> {
   }
 
   void setAppearance(Map<String, dynamic> appearance) =>
-      state = state.copyWith(appearance: appearance);
+      state = state.copyWith(appearance: {...?state.appearance, ...appearance});
 
   Future<bool> saveAvatar(String style) async {
     state = state.copyWith(isLoading: true);

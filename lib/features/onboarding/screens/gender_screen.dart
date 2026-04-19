@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:tinyworld_app/core/theme/styles.dart';
 import 'package:tinyworld_app/shared/widgets/onboarding_scaffold.dart';
 
 class GenderScreen extends StatelessWidget {
@@ -13,7 +15,6 @@ class GenderScreen extends StatelessWidget {
       totalSteps: 9,
       title: 'Qual é o seu gênero?',
       subtitle: 'Isso nos ajuda a personalizar sua experiência.',
-      onBack: () => context.go('/onboarding/basic-info'),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
@@ -24,6 +25,7 @@ class GenderScreen extends StatelessWidget {
               label: 'Masculino',
               value: 'male',
               name: name,
+              color: const Color(0xFF5B8EFF),
             ),
             const SizedBox(height: 12),
             _GenderCard(
@@ -31,13 +33,15 @@ class GenderScreen extends StatelessWidget {
               label: 'Feminino',
               value: 'female',
               name: name,
+              color: TwColors.secondary,
             ),
             const SizedBox(height: 12),
             _GenderCard(
-              icon: Icons.balance,
+              icon: Icons.transgender,
               label: 'Não-binário',
               value: 'non_binary',
               name: name,
+              color: TwColors.primary,
             ),
           ],
         ),
@@ -51,17 +55,19 @@ class _GenderCard extends StatelessWidget {
   final String label;
   final String value;
   final String name;
+  final Color color;
   const _GenderCard({
     required this.icon,
     required this.label,
     required this.value,
     required this.name,
+    required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.go('/onboarding/birthdate', extra: {
+      onTap: () => context.push('/onboarding/birthdate', extra: {
         'name': name,
         'gender': value,
       }),
@@ -69,9 +75,9 @@ class _GenderCard extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         decoration: BoxDecoration(
-          color: const Color(0xFFF5F7FA),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.transparent),
+          color: TwColors.card,
+          borderRadius: BorderRadius.circular(TwRadius.lg),
+          border: Border.all(color: TwColors.border),
         ),
         child: Row(
           children: [
@@ -79,22 +85,22 @@ class _GenderCard extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: const Color(0xFF1B76F2).withValues(alpha: 0.1),
+                color: color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: const Color(0xFF1B76F2), size: 24),
+              child: Icon(icon, color: color, size: 24),
             ),
             const SizedBox(width: 16),
             Text(
               label,
-              style: const TextStyle(
+              style: GoogleFonts.spaceGrotesk(
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF1A1A2E),
+                color: TwColors.onBg,
               ),
             ),
             const Spacer(),
-            const Icon(Icons.chevron_right, color: Color(0xFFC4C9D0)),
+            const Icon(Icons.chevron_right, color: TwColors.muted),
           ],
         ),
       ),
