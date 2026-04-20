@@ -139,6 +139,12 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
+  /// Explicit registration — always creates a new account.
+  Future<bool> registerWithEmail(String email, String password) async {
+    state = state.copyWith(isLoading: true, error: null);
+    return _signUpWithEmail(email, password);
+  }
+
   /// Returns true if the user has completed onboarding (server is source of truth).
   /// Falls back to local value on error.
   Future<bool> checkOnboardingFromServer() async {

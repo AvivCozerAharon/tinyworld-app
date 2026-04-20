@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:tinyworld_app/core/storage/local_storage.dart';
 import 'package:tinyworld_app/core/theme/styles.dart';
 import 'package:tinyworld_app/features/auth/screens/login_screen.dart';
+import 'package:tinyworld_app/features/auth/screens/email_verification_screen.dart';
 import 'package:tinyworld_app/features/onboarding/screens/liveness_screen.dart';
 import 'package:tinyworld_app/features/onboarding/screens/avatar_screen.dart';
 import 'package:tinyworld_app/features/onboarding/screens/hobbies_screen.dart';
@@ -37,6 +38,12 @@ final _router = GoRouter(
         pageBuilder: (_, __) =>
             AppAnimations.pageTransition(child: const LoginScreen()),
         builder: (_, __) => const LoginScreen()),
+    GoRoute(
+        path: '/onboarding/verify-email',
+        pageBuilder: (_, state) => AppAnimations.pageTransition(
+            child: EmailVerificationScreen(email: state.extra as String)),
+        builder: (_, state) =>
+            EmailVerificationScreen(email: state.extra as String)),
     GoRoute(
         path: '/onboarding/basic-info',
         pageBuilder: (_, __) =>

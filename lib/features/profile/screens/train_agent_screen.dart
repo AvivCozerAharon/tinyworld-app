@@ -1,8 +1,8 @@
-import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:speech_to_text/speech_to_text.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:tinyworld_app/core/theme/styles.dart';
 import 'package:tinyworld_app/features/chats/widgets/typing_indicator.dart';
 import 'package:tinyworld_app/features/profile/profile_controller.dart';
 
@@ -16,51 +16,20 @@ class TrainAgentScreen extends ConsumerStatefulWidget {
 class _TrainAgentScreenState extends ConsumerState<TrainAgentScreen> {
   final _ctrl = TextEditingController();
   final _scrollCtrl = ScrollController();
-  final _stt = SpeechToText();
   final List<_TrainMsg> _messages = [];
-  bool _sttAvailable = false;
-  bool _isListening = false;
   bool _isTyping = false;
   int? _selectedOption;
+  // Track which question IDs have already been queued for display
+  final Set<String> _shownIds = {};
 
   @override
   void initState() {
     super.initState();
-    _initStt();
+    // Provider already calls fetchQuestion on creation — listen for first result
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(trainControllerProvider.notifier).fetchQuestion();
+      final q = ref.read(trainControllerProvider).currentQuestion;
+      if (q != null) _maybeShowQuestion(q);
     });
-  }
-
-  Future<void> _initStt() async {
-    _sttAvailable = await _stt.initialize(
-      onError: (_) {},
-      onStatus: (status) {
-        if (status == 'done' || status == 'notListening') {
-          if (mounted) setState(() => _isListening = false);
-        }
-      },
-    );
-    if (mounted) setState(() {});
-  }
-
-  void _toggleMic() {
-    if (_isListening) {
-      _stt.stop();
-      setState(() => _isListening = false);
-    } else {
-      setState(() => _isListening = true);
-      _stt.listen(
-        onResult: (result) {
-          if (result.finalResult) {
-            _ctrl.text = result.recognizedWords;
-            setState(() => _isListening = false);
-          }
-        },
-        localeId: 'pt_BR',
-        listenOptions: SpeechListenOptions(listenMode: ListenMode.confirmation),
-      );
-    }
   }
 
   @override
@@ -82,23 +51,23 @@ class _TrainAgentScreenState extends ConsumerState<TrainAgentScreen> {
     });
   }
 
+  void _maybeShowQuestion(TrainQuestion q) {
+    if (_shownIds.contains(q.questionId)) return;
+    _shownIds.add(q.questionId);
+    _showTypingThenMessage(q.question);
+  }
+
   Future<void> _showTypingThenMessage(String text) async {
     setState(() => _isTyping = true);
     _scrollToBottom();
-    final delay = 800 + Random().nextInt(1500);
-    await Future.delayed(Duration(milliseconds: delay));
+    // Shorter, fixed delay — feels snappy but still human
+    await Future.delayed(Duration(milliseconds: 400 + Random().nextInt(400)));
     if (!mounted) return;
     setState(() {
       _isTyping = false;
       _messages.add(_TrainMsg(text: text, isTinyzinho: true));
     });
     _scrollToBottom();
-  }
-
-  void _onQuestionLoaded(TrainQuestion? q) {
-    if (q != null && _messages.where((m) => m.text == q.question).isEmpty) {
-      _showTypingThenMessage(q.question);
-    }
   }
 
   void _submitAnswer(String answer) {
@@ -110,12 +79,12 @@ class _TrainAgentScreenState extends ConsumerState<TrainAgentScreen> {
     });
     _scrollToBottom();
     ref.read(trainControllerProvider.notifier).submitAnswer(answer).then((_) {
+      if (!mounted) return;
       final state = ref.read(trainControllerProvider);
       if (state.currentQuestion != null) {
-        _onQuestionLoaded(state.currentQuestion);
+        _maybeShowQuestion(state.currentQuestion!);
       } else {
-        _showTypingThenMessage(
-            'Obrigado por compartilhar! Vou lembrar de tudo. 💙');
+        _showTypingThenMessage('Obrigado por compartilhar! Vou lembrar de tudo. 💙');
       }
     });
   }
@@ -125,15 +94,16 @@ class _TrainAgentScreenState extends ConsumerState<TrainAgentScreen> {
     final state = ref.watch(trainControllerProvider);
 
     ref.listen<TrainState>(trainControllerProvider, (prev, next) {
-      if (prev?.currentQuestion?.questionId !=
-          next.currentQuestion?.questionId) {
-        _onQuestionLoaded(next.currentQuestion);
+      if (next.currentQuestion != null &&
+          prev?.currentQuestion?.questionId != next.currentQuestion?.questionId) {
+        _maybeShowQuestion(next.currentQuestion!);
       }
     });
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFDFB),
+      backgroundColor: TwColors.bg,
       appBar: AppBar(
+        backgroundColor: TwColors.bg,
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -141,21 +111,23 @@ class _TrainAgentScreenState extends ConsumerState<TrainAgentScreen> {
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                    colors: [Color(0xFF1B76F2), Color(0xFF3B82F6)]),
+                gradient: TwGradients.accent,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Center(
+              child: Center(
                 child: Text('T',
-                    style: TextStyle(
+                    style: GoogleFonts.spaceGrotesk(
                         color: Colors.white,
                         fontSize: 14,
                         fontWeight: FontWeight.w800)),
               ),
             ),
             const SizedBox(width: 8),
-            const Text('Tinyzinho',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            Text('Tinyzinho',
+                style: GoogleFonts.spaceGrotesk(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: TwColors.onBg)),
           ],
         ),
         actions: [
@@ -163,12 +135,22 @@ class _TrainAgentScreenState extends ConsumerState<TrainAgentScreen> {
             Padding(
               padding: const EdgeInsets.only(right: 16),
               child: Center(
-                child: Text(
-                  '${state.totalAnswered} respondidas',
-                  style: TextStyle(
-                    color: Colors.grey.shade500,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: TwColors.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(TwRadius.pill),
+                    border: Border.all(
+                        color: TwColors.primary.withValues(alpha: 0.3)),
+                  ),
+                  child: Text(
+                    '${state.totalAnswered} ✓',
+                    style: GoogleFonts.spaceGrotesk(
+                      color: TwColors.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
@@ -184,7 +166,8 @@ class _TrainAgentScreenState extends ConsumerState<TrainAgentScreen> {
               _messages.isEmpty)
             const Padding(
               padding: EdgeInsets.all(32),
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(
+                  child: CircularProgressIndicator(color: TwColors.primary)),
             )
           else if (state.currentQuestion == null && _messages.isEmpty)
             Padding(
@@ -192,19 +175,19 @@ class _TrainAgentScreenState extends ConsumerState<TrainAgentScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Sem perguntas no momento',
-                      style: TextStyle(color: Color(0xFF6B7280))),
+                  Text('Sem perguntas no momento',
+                      style: GoogleFonts.spaceGrotesk(
+                          color: TwColors.muted, fontSize: 14)),
                   const SizedBox(height: 16),
                   FilledButton(
-                    onPressed: () => ref
-                        .read(trainControllerProvider.notifier)
-                        .fetchQuestion(),
+                    onPressed: () =>
+                        ref.read(trainControllerProvider.notifier).fetchQuestion(),
                     child: const Text('Tentar novamente'),
                   ),
                 ],
               ),
             )
-          else if (!_isTyping)
+          else if (!_isTyping && state.currentQuestion != null)
             _buildInputArea(state),
         ],
       ),
@@ -219,13 +202,23 @@ class _TrainAgentScreenState extends ConsumerState<TrainAgentScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.psychology, size: 48, color: Colors.grey.shade300),
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: TwColors.card,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: TwColors.border),
+                ),
+                child: const Icon(Icons.psychology_outlined,
+                    size: 32, color: TwColors.muted),
+              ),
               const SizedBox(height: 16),
               Text(
                 'Responda perguntas para que seu\nagente te conheça melhor',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: Colors.grey.shade400, fontSize: 14, height: 1.5),
+                style: GoogleFonts.spaceGrotesk(
+                    color: TwColors.muted, fontSize: 14, height: 1.5),
               ),
             ],
           ),
@@ -235,13 +228,13 @@ class _TrainAgentScreenState extends ConsumerState<TrainAgentScreen> {
 
     return ListView.builder(
       controller: _scrollCtrl,
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       itemCount: _messages.length,
       itemBuilder: (_, i) {
         final msg = _messages[i];
         final isTiny = msg.isTinyzinho;
         return Padding(
-          padding: const EdgeInsets.only(bottom: 4),
+          padding: const EdgeInsets.only(bottom: 6),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisAlignment:
@@ -249,19 +242,18 @@ class _TrainAgentScreenState extends ConsumerState<TrainAgentScreen> {
             children: [
               if (isTiny) ...[
                 Container(
-                  width: 24,
-                  height: 24,
-                  margin: const EdgeInsets.only(right: 6),
+                  width: 26,
+                  height: 26,
+                  margin: const EdgeInsets.only(right: 8, bottom: 2),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                        colors: [Color(0xFF1B76F2), Color(0xFF3B82F6)]),
-                    borderRadius: BorderRadius.circular(6),
+                    gradient: TwGradients.accent,
+                    borderRadius: BorderRadius.circular(7),
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Text('T',
-                        style: TextStyle(
+                        style: GoogleFonts.spaceGrotesk(
                             color: Colors.white,
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: FontWeight.w800)),
                   ),
                 ),
@@ -269,24 +261,26 @@ class _TrainAgentScreenState extends ConsumerState<TrainAgentScreen> {
               Flexible(
                 child: Container(
                   constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.7),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      maxWidth: MediaQuery.of(context).size.width * 0.72),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: isTiny
-                        ? const Color(0xFFF5F7FA)
-                        : const Color(0xFF1B76F2),
+                    gradient: isTiny ? null : TwGradients.primary,
+                    color: isTiny ? TwColors.card : null,
                     borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(14),
-                      topRight: const Radius.circular(14),
-                      bottomLeft: Radius.circular(isTiny ? 4 : 14),
-                      bottomRight: Radius.circular(isTiny ? 14 : 4),
+                      topLeft: const Radius.circular(16),
+                      topRight: const Radius.circular(16),
+                      bottomLeft: Radius.circular(isTiny ? 4 : 16),
+                      bottomRight: Radius.circular(isTiny ? 16 : 4),
                     ),
+                    border: isTiny
+                        ? Border.all(color: TwColors.border, width: 0.5)
+                        : null,
                   ),
                   child: Text(
                     msg.text,
-                    style: TextStyle(
-                      color: isTiny ? const Color(0xFF1A1A2E) : Colors.white,
+                    style: GoogleFonts.spaceGrotesk(
+                      color: isTiny ? TwColors.onBg : Colors.white,
                       fontSize: 14,
                       height: 1.4,
                     ),
@@ -302,34 +296,34 @@ class _TrainAgentScreenState extends ConsumerState<TrainAgentScreen> {
 
   Widget _buildTypingBubble() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Container(
-            width: 24,
-            height: 24,
-            margin: const EdgeInsets.only(right: 6),
+            width: 26,
+            height: 26,
+            margin: const EdgeInsets.only(right: 8, bottom: 2),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                  colors: [Color(0xFF1B76F2), Color(0xFF3B82F6)]),
-              borderRadius: BorderRadius.circular(6),
+              gradient: TwGradients.accent,
+              borderRadius: BorderRadius.circular(7),
             ),
-            child: const Center(
+            child: Center(
               child: Text('T',
-                  style: TextStyle(
+                  style: GoogleFonts.spaceGrotesk(
                       color: Colors.white,
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w800)),
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFFF5F7FA),
+              color: TwColors.card,
               borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: TwColors.border, width: 0.5),
             ),
-            child: const TypingIndicator(dotColor: Color(0xFF1B76F2)),
+            child: const TypingIndicator(dotColor: TwColors.primary),
           ),
         ],
       ),
@@ -337,19 +331,11 @@ class _TrainAgentScreenState extends ConsumerState<TrainAgentScreen> {
   }
 
   Widget _buildInputArea(TrainState state) {
-    final q = state.currentQuestion;
-    if (q == null) return const SizedBox.shrink();
-
+    final q = state.currentQuestion!;
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
+      decoration: const BoxDecoration(
+        color: TwColors.surface,
+        border: Border(top: BorderSide(color: TwColors.border, width: 0.5)),
       ),
       child: SafeArea(
         child: Padding(
@@ -377,16 +363,17 @@ class _TrainAgentScreenState extends ConsumerState<TrainAgentScreen> {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                 decoration: BoxDecoration(
                   color: selected
-                      ? const Color(0xFF1B76F2).withValues(alpha: 0.08)
-                      : const Color(0xFFF5F7FA),
+                      ? TwColors.primary.withValues(alpha: 0.1)
+                      : TwColors.card,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color:
-                        selected ? const Color(0xFF1B76F2) : Colors.transparent,
-                    width: 1.5,
+                    color: selected
+                        ? TwColors.primary.withValues(alpha: 0.6)
+                        : TwColors.border,
+                    width: selected ? 1.5 : 1,
                   ),
                 ),
                 child: Row(
@@ -397,13 +384,9 @@ class _TrainAgentScreenState extends ConsumerState<TrainAgentScreen> {
                       height: 20,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: selected
-                            ? const Color(0xFF1B76F2)
-                            : Colors.transparent,
+                        color: selected ? TwColors.primary : Colors.transparent,
                         border: Border.all(
-                          color: selected
-                              ? const Color(0xFF1B76F2)
-                              : Colors.grey.shade400,
+                          color: selected ? TwColors.primary : TwColors.muted,
                           width: 2,
                         ),
                       ),
@@ -416,13 +399,11 @@ class _TrainAgentScreenState extends ConsumerState<TrainAgentScreen> {
                     Expanded(
                       child: Text(
                         options[i],
-                        style: TextStyle(
+                        style: GoogleFonts.spaceGrotesk(
                           fontSize: 14,
                           fontWeight:
                               selected ? FontWeight.w600 : FontWeight.w400,
-                          color: selected
-                              ? const Color(0xFF1B76F2)
-                              : const Color(0xFF1A1A2E),
+                          color: selected ? TwColors.primary : TwColors.onBg,
                         ),
                       ),
                     ),
@@ -435,19 +416,34 @@ class _TrainAgentScreenState extends ConsumerState<TrainAgentScreen> {
         SizedBox(
           width: double.infinity,
           height: 48,
-          child: FilledButton(
-            onPressed: _selectedOption != null && !state.isLoading
-                ? () => _submitAnswer(options[_selectedOption!])
-                : null,
-            child: state.isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white),
-                  )
-                : const Text('Enviar',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: _selectedOption != null && !state.isLoading
+                  ? TwGradients.primary
+                  : null,
+              color: _selectedOption != null && !state.isLoading
+                  ? null
+                  : TwColors.border,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: TextButton(
+              onPressed: _selectedOption != null && !state.isLoading
+                  ? () => _submitAnswer(options[_selectedOption!])
+                  : null,
+              child: state.isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : Text('Enviar',
+                      style: GoogleFonts.spaceGrotesk(
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        fontSize: 15,
+                      )),
+            ),
           ),
         ),
       ],
@@ -457,42 +453,24 @@ class _TrainAgentScreenState extends ConsumerState<TrainAgentScreen> {
   Widget _buildTextInput(TrainState state) {
     return Row(
       children: [
-        if (_sttAvailable)
-          GestureDetector(
-            onTap: _toggleMic,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: _isListening
-                    ? Colors.red.shade400
-                    : const Color(0xFFF5F7FA),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                _isListening ? Icons.stop : Icons.mic,
-                size: 20,
-                color: _isListening ? Colors.white : const Color(0xFF6B7280),
-              ),
-            ),
-          ),
-        if (_sttAvailable) const SizedBox(width: 8),
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              color: const Color(0xFFF5F7FA),
+              color: TwColors.card,
               borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: TwColors.border),
             ),
             child: TextField(
               controller: _ctrl,
-              style: const TextStyle(color: Color(0xFF1A1A2E), fontSize: 14),
-              decoration: const InputDecoration(
+              style: GoogleFonts.spaceGrotesk(
+                  color: TwColors.onBg, fontSize: 14),
+              decoration: InputDecoration(
                 hintText: 'Sua resposta...',
-                hintStyle: TextStyle(color: Color(0xFFC4C9D0)),
+                hintStyle:
+                    GoogleFonts.spaceGrotesk(color: TwColors.muted, fontSize: 14),
                 border: InputBorder.none,
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 18, vertical: 12),
               ),
               onSubmitted: (_) {
                 final text = _ctrl.text.trim();
@@ -502,16 +480,22 @@ class _TrainAgentScreenState extends ConsumerState<TrainAgentScreen> {
           ),
         ),
         const SizedBox(width: 8),
-        CircleAvatar(
-          backgroundColor: const Color(0xFF1B76F2),
-          child: IconButton(
-            onPressed: state.isLoading
-                ? null
-                : () {
-                    final text = _ctrl.text.trim();
-                    if (text.isNotEmpty) _submitAnswer(text);
-                  },
-            icon: const Icon(Icons.send, size: 18, color: Colors.white),
+        GestureDetector(
+          onTap: state.isLoading
+              ? null
+              : () {
+                  final text = _ctrl.text.trim();
+                  if (text.isNotEmpty) _submitAnswer(text);
+                },
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              gradient: state.isLoading ? null : TwGradients.primary,
+              color: state.isLoading ? TwColors.border : null,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.send, size: 18, color: Colors.white),
           ),
         ),
       ],

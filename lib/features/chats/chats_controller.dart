@@ -6,6 +6,7 @@ class ChatItem {
   final String simId;
   final String otherUserId;
   final String otherAvatar;
+  final String otherName;
   final double compatibility;
   final String humanizeState;
   final String ts;
@@ -14,6 +15,7 @@ class ChatItem {
     required this.simId,
     required this.otherUserId,
     required this.otherAvatar,
+    required this.otherName,
     required this.compatibility,
     required this.humanizeState,
     required this.ts,
@@ -50,6 +52,7 @@ class ChatsController extends StateNotifier<ChatsState> {
                 simId: d['sim_id'] as String,
                 otherUserId: d['other_user_id'] as String? ?? '',
                 otherAvatar: d['other_avatar'] as String? ?? '',
+                otherName: d['other_name'] as String? ?? '',
                 compatibility: (d['compatibility'] as num).toDouble(),
                 humanizeState:
                     d['humanize_state'] as String? ?? 'simulated',
@@ -73,6 +76,7 @@ class ChatsController extends StateNotifier<ChatsState> {
                   simId: c.simId,
                   otherUserId: c.otherUserId,
                   otherAvatar: c.otherAvatar,
+                  otherName: c.otherName,
                   compatibility: c.compatibility,
                   humanizeState: 'humanize_pending_sent',
                   ts: c.ts)
@@ -96,6 +100,7 @@ class ChatsController extends StateNotifier<ChatsState> {
                   simId: c.simId,
                   otherUserId: c.otherUserId,
                   otherAvatar: c.otherAvatar,
+                  otherName: c.otherName,
                   compatibility: c.compatibility,
                   humanizeState: 'humanized',
                   ts: c.ts)
@@ -106,6 +111,12 @@ class ChatsController extends StateNotifier<ChatsState> {
     } catch (_) {
       return false;
     }
+  }
+
+  void deleteChat(String simId) {
+    state = state.copyWith(
+      chats: state.chats.where((c) => c.simId != simId).toList(),
+    );
   }
 
   Future<List<String>> getIcebreakers(String simId) async {

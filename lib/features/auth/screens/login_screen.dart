@@ -17,8 +17,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
+  final _confirmPassCtrl = TextEditingController();
   bool _showEmailForm = false;
+  bool _isRegisterMode = false;
   bool _obscurePass = true;
+  bool _obscureConfirm = true;
   late AnimationController _floatCtrl;
 
   @override
@@ -34,6 +37,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   void dispose() {
     _emailCtrl.dispose();
     _passCtrl.dispose();
+    _confirmPassCtrl.dispose();
     _floatCtrl.dispose();
     super.dispose();
   }
@@ -243,43 +247,68 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Widget _buildEmailForm(AuthState authState) {
+    final inputBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: TwColors.border),
+    );
+    final focusedBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: TwColors.primary, width: 1.5),
+    );
+    final textStyle = GoogleFonts.spaceGrotesk(color: TwColors.onBg, fontSize: 14);
+    final hintStyle = GoogleFonts.spaceGrotesk(color: TwColors.muted, fontSize: 14);
+
     return Column(
       children: [
+        // Toggle entrar / criar conta
+        Container(
+          decoration: BoxDecoration(
+            color: TwColors.card,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: TwColors.border),
+          ),
+          child: Row(
+            children: [
+              _ModeTab(
+                label: 'Entrar',
+                active: !_isRegisterMode,
+                onTap: () => setState(() {
+                  _isRegisterMode = false;
+                  _confirmPassCtrl.clear();
+                }),
+              ),
+              _ModeTab(
+                label: 'Criar conta',
+                active: _isRegisterMode,
+                onTap: () => setState(() => _isRegisterMode = true),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
         TextField(
           controller: _emailCtrl,
           keyboardType: TextInputType.emailAddress,
-          style: GoogleFonts.spaceGrotesk(color: TwColors.onBg, fontSize: 14),
+          style: textStyle,
           decoration: InputDecoration(
             hintText: 'Email',
-            hintStyle:
-                GoogleFonts.spaceGrotesk(color: TwColors.muted, fontSize: 14),
+            hintStyle: hintStyle,
             filled: true,
             fillColor: TwColors.card,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: TwColors.border),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: TwColors.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: TwColors.primary, width: 1.5),
-            ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: inputBorder,
+            enabledBorder: inputBorder,
+            focusedBorder: focusedBorder,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
         ),
         const SizedBox(height: 10),
         TextField(
           controller: _passCtrl,
           obscureText: _obscurePass,
-          style: GoogleFonts.spaceGrotesk(color: TwColors.onBg, fontSize: 14),
+          style: textStyle,
           decoration: InputDecoration(
             hintText: 'Senha',
-            hintStyle:
-                GoogleFonts.spaceGrotesk(color: TwColors.muted, fontSize: 14),
+            hintStyle: hintStyle,
             filled: true,
             fillColor: TwColors.card,
             suffixIcon: IconButton(
@@ -290,23 +319,40 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               ),
               onPressed: () => setState(() => _obscurePass = !_obscurePass),
             ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: TwColors.border),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: TwColors.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: TwColors.primary, width: 1.5),
-            ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: inputBorder,
+            enabledBorder: inputBorder,
+            focusedBorder: focusedBorder,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
-          onSubmitted: (_) => _handleEmailLogin(authState),
+          onSubmitted: _isRegisterMode ? null : (_) => _handleEmailLogin(authState),
         ),
+        if (_isRegisterMode) ...[
+          const SizedBox(height: 10),
+          TextField(
+            controller: _confirmPassCtrl,
+            obscureText: _obscureConfirm,
+            style: textStyle,
+            decoration: InputDecoration(
+              hintText: 'Confirmar senha',
+              hintStyle: hintStyle,
+              filled: true,
+              fillColor: TwColors.card,
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscureConfirm ? Icons.visibility_off : Icons.visibility,
+                  color: TwColors.muted,
+                  size: 18,
+                ),
+                onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+              ),
+              border: inputBorder,
+              enabledBorder: inputBorder,
+              focusedBorder: focusedBorder,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+            onSubmitted: (_) => _handleEmailLogin(authState),
+          ),
+        ],
         const SizedBox(height: 14),
         SizedBox(
           width: double.infinity,
@@ -326,13 +372,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
                       : Text(
-                          'Entrar',
+                          _isRegisterMode ? 'Criar conta' : 'Entrar',
                           style: GoogleFonts.spaceGrotesk(
                             color: Colors.white,
                             fontSize: 15,
@@ -346,12 +389,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         ),
         const SizedBox(height: 8),
         TextButton(
-          onPressed: () => setState(() => _showEmailForm = false),
-          child: Text(
-            'Voltar',
-            style: GoogleFonts.spaceGrotesk(
-                color: TwColors.muted, fontSize: 13),
-          ),
+          onPressed: () => setState(() {
+            _showEmailForm = false;
+            _isRegisterMode = false;
+          }),
+          child: Text('Voltar', style: GoogleFonts.spaceGrotesk(color: TwColors.muted, fontSize: 13)),
         ),
       ],
     );
@@ -361,7 +403,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final email = _emailCtrl.text.trim();
     final pass = _passCtrl.text.trim();
     if (email.isEmpty || pass.isEmpty) return;
+
     final ctrl = ref.read(authControllerProvider.notifier);
+
+    if (_isRegisterMode) {
+      if (_confirmPassCtrl.text.trim() != pass) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('As senhas não coincidem',
+                style: GoogleFonts.spaceGrotesk(color: Colors.white)),
+            backgroundColor: TwColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      final ok = await ctrl.registerWithEmail(email, pass);
+      if (ok && mounted) {
+        context.push('/onboarding/verify-email', extra: email);
+      }
+      return;
+    }
+
     final ok = await ctrl.signInWithEmail(email, pass);
     if (ok && mounted) {
       final done = await ctrl.checkOnboardingFromServer();
@@ -398,6 +461,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             fontSize: 17,
             fontWeight: FontWeight.w800,
             color: const Color(0xFF4285F4),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ModeTab extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _ModeTab({required this.label, required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          margin: const EdgeInsets.all(3),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            gradient: active ? TwGradients.primary : null,
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: GoogleFonts.spaceGrotesk(
+                color: active ? Colors.white : TwColors.muted,
+                fontSize: 13,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
           ),
         ),
       ),

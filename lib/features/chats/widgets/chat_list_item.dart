@@ -78,7 +78,9 @@ class ChatListItem extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '???',
+                    chat.humanizeState == 'humanized' && chat.otherName.isNotEmpty
+                        ? chat.otherName
+                        : '???',
                     style: GoogleFonts.spaceGrotesk(
                       color: TwColors.onBg,
                       fontWeight: FontWeight.w700,

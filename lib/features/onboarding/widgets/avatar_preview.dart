@@ -10,8 +10,10 @@ class AvatarPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fullUrl = '${apiClient.baseUrl}$avatarUrl';
-    if (avatarUrl.endsWith('.svg')) {
+    final fullUrl = avatarUrl.startsWith('http')
+        ? avatarUrl
+        : '${apiClient.baseUrl}$avatarUrl';
+    if (avatarUrl.contains('.svg') || avatarUrl.contains('/svg')) {
       return SvgPicture.network(fullUrl, width: size, height: size);
     }
     return Image.network(fullUrl, width: size, height: size);
