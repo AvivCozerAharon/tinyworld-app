@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:tinyworld_app/core/theme/styles.dart';
 import 'package:tinyworld_app/features/chats/widgets/typing_indicator.dart';
-import 'package:tinyworld_app/features/profile/profile_controller.dart';
+import 'package:tinyworld_app/features/profile/profile_controller.dart' show TrainState, TrainQuestion, trainControllerProvider;
 
 class TrainAgentScreen extends ConsumerStatefulWidget {
   const TrainAgentScreen({super.key});
@@ -78,15 +78,30 @@ class _TrainAgentScreenState extends ConsumerState<TrainAgentScreen> {
       _ctrl.clear();
     });
     _scrollToBottom();
-    ref.read(trainControllerProvider.notifier).submitAnswer(answer).then((_) {
+    ref.read(trainControllerProvider.notifier).submitAnswer(answer).then((reaction) {
       if (!mounted) return;
       final state = ref.read(trainControllerProvider);
-      if (state.currentQuestion != null) {
-        _maybeShowQuestion(state.currentQuestion!);
-      } else {
-        _showTypingThenMessage('Obrigado por compartilhar! Vou lembrar de tudo. 💙');
-      }
+      _showReactionThenQuestion(
+        reaction: reaction,
+        nextQuestion: state.currentQuestion,
+      );
     });
+  }
+
+  Future<void> _showReactionThenQuestion({
+    required String reaction,
+    required TrainQuestion? nextQuestion,
+  }) async {
+    // Show reaction first if we have one
+    if (reaction.isNotEmpty) {
+      await _showTypingThenMessage(reaction);
+      if (!mounted) return;
+    }
+    if (nextQuestion != null) {
+      _maybeShowQuestion(nextQuestion);
+    } else {
+      _showTypingThenMessage('Obrigado por compartilhar! Vou lembrar de tudo. 💙');
+    }
   }
 
   @override

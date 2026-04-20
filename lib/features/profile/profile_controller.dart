@@ -61,12 +61,14 @@ class TrainQuestion {
   final String questionType;
   final String question;
   final List<String>? options;
+  final String category;
 
   const TrainQuestion({
     required this.questionId,
     required this.questionType,
     required this.question,
     this.options,
+    this.category = 'general',
   });
 }
 
@@ -116,6 +118,7 @@ class TrainController extends StateNotifier<TrainState> {
           questionType: data['question_type'] as String,
           question: data['question'] as String,
           options: (data['options'] as List?)?.cast<String>(),
+          category: data['category'] as String? ?? 'general',
         ),
       );
     } catch (e) {
@@ -123,32 +126,37 @@ class TrainController extends StateNotifier<TrainState> {
     }
   }
 
-  Future<void> submitAnswer(String answer) async {
+  Future<String> submitAnswer(String answer) async {
     final q = state.currentQuestion;
-    if (q == null) return;
+    if (q == null) return '';
     state = state.copyWith(isLoading: true, error: null);
     try {
       final resp = await apiClient.post('/profile/train/answer', data: {
         'question_id': q.questionId,
         'question_type': q.questionType,
         'answer': answer,
+        'category': q.category,
       });
       final data = resp.data as Map<String, dynamic>;
       final next = data['next_question'] as Map<String, dynamic>?;
+      final reaction = data['reaction'] as String? ?? '';
       state = state.copyWith(
         isLoading: false,
-        totalAnswered: state.totalAnswered + 1,
+        totalAnswered: (data['total_answered'] as int?) ?? state.totalAnswered + 1,
         currentQuestion: next != null
             ? TrainQuestion(
                 questionId: next['question_id'] as String,
                 questionType: next['question_type'] as String,
                 question: next['question'] as String,
                 options: (next['options'] as List?)?.cast<String>(),
+                category: next['category'] as String? ?? 'general',
               )
             : null,
       );
+      return reaction;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+      return '';
     }
   }
 }
