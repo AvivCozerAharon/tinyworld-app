@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 class MapWsService {
@@ -13,6 +12,7 @@ class MapWsService {
   Timer? _reconnectTimer;
   int _reconnectAttempts = 0;
   static const _maxReconnects = 5;
+  static const _baseDelay = Duration(seconds: 3);
   bool _disposed = false;
 
   MapWsService({
@@ -47,9 +47,9 @@ class MapWsService {
       if (!_disposed && !_controller.isClosed) _controller.close();
       return;
     }
-    final delaySecs = min(30, pow(2, _reconnectAttempts).toInt());
+    final delay = _baseDelay * (1 << _reconnectAttempts);
     _reconnectAttempts++;
-    _reconnectTimer = Timer(Duration(seconds: delaySecs), connect);
+    _reconnectTimer = Timer(delay, connect);
   }
 
   void dispose() {

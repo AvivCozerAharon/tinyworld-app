@@ -12,117 +12,204 @@ import 'package:tinyworld_app/shared/widgets/onboarding_scaffold.dart';
 // ── Palettes ──────────────────────────────────────────────────────────────────
 
 const _skinColors = [
-  // Realistic tones
-  'fddcb5', 'edb98a', 'd08b5b', 'ae5d29', '694d3d', '3d1a00',
-  // Fun
-  'ae8ee4', 'f9c74f', '90e0ef', '95d5b2', 'ffb3c6', '48cae4',
+  '614335',
+  'ae5d29',
+  'd08b5b',
+  'edb98a',
+  'f8d25c',
+  'fd9841',
+  'ffdbb4',
+  'ae8ee4',
+  'f9c74f',
+  '90e0ef',
+  '95d5b2',
+  'ffb3c6',
+  '48cae4',
 ];
 
 const _hairColors = [
-  // Realistic
-  '2c1b18', '724133', 'b58143', 'c93305', 'ecdcbf', '929598',
-  // Fun
-  '7b2d8b', '2196f3', 'e91e63', '4caf50', 'ff9800', '00bcd4',
+  '2c1b18',
+  '4a312c',
+  '724133',
+  'a55728',
+  'b58143',
+  'c93305',
+  'd6b370',
+  'e8e1e1',
+  'ecdcbf',
+  'f59797',
+  '7b2d8b',
+  '2196f3',
+  'e91e63',
+  '4caf50',
+  'ff9800',
+  '00bcd4',
 ];
 
 const _clotheColors = [
-  '3c4f5c', '65c9ff', '5199e4', '25557c', 'e6e6e6', 'ffffff',
-  'ff5c5c', 'ff488e', 'a7ffc4', 'ffafb9', '262e33', 'ffd700',
+  '3c4f5c',
+  '65c9ff',
+  '5199e4',
+  '25557c',
+  '929598',
+  'e6e6e6',
+  'ffffff',
+  'ff5c5c',
+  'ff488e',
+  'a7ffc4',
+  'ffafb9',
+  'ffdeb5',
+  'ffffb1',
+  '262e33',
+  'ffd700',
 ];
 
-// ── Options ───────────────────────────────────────────────────────────────────
+const _accessoryColors = [
+  '3c4f5c',
+  '65c9ff',
+  '5199e4',
+  '25557c',
+  '929598',
+  'a7ffc4',
+  'b1e2ff',
+  'e6e6e6',
+  'ff5c5c',
+  'ff488e',
+  'ffafb9',
+  'ffdeb5',
+  'ffffb1',
+  'ffffff',
+];
+
+// ── Options (camelCase — DiceBear v9 API) ────────────────────────────────────
 
 const _hairOptions = [
-  AvatarOption('shortCurly',           'Curly'),
-  AvatarOption('shortFlat',            'Flat'),
-  AvatarOption('shortRound',           'Round'),
-  AvatarOption('shortWaved',           'Waved'),
-  AvatarOption('sides',                'Sides'),
-  AvatarOption('dreads01',             'Dreads'),
-  AvatarOption('theCaesar',            'Caesar'),
-  AvatarOption('frizzle',              'Frizzle'),
-  AvatarOption('straight01',           'Straight'),
-  AvatarOption('curly',                'Long Curly'),
-  AvatarOption('bob',                  'Bob'),
-  AvatarOption('bun',                  'Bun'),
-  AvatarOption('fro',                  'Fro'),
-  AvatarOption('dreads',               'Long Dreads'),
-  AvatarOption('miaWallace',           'Mia'),
-  AvatarOption('hat',                  'Hat'),
-  AvatarOption('hijab',                'Hijab'),
-  AvatarOption('turban',               'Turban'),
+  AvatarOption('bigHair', 'Grande'),
+  AvatarOption('bob', 'Bob'),
+  AvatarOption('bun', 'Coque'),
+  AvatarOption('curly', 'Cacheado'),
+  AvatarOption('curvy', 'Ondulado'),
+  AvatarOption('dreads', 'Dreads'),
+  AvatarOption('dreads01', 'Rastas 1'),
+  AvatarOption('dreads02', 'Rastas 2'),
+  AvatarOption('frida', 'Frida'),
+  AvatarOption('frizzle', 'Frizzle'),
+  AvatarOption('fro', 'Black'),
+  AvatarOption('froBand', 'Black +'),
+  AvatarOption('hat', 'Chapéu'),
+  AvatarOption('hijab', 'Hijab'),
+  AvatarOption('longButNotTooLong', 'Longo'),
+  AvatarOption('miaWallace', 'Mia'),
+  AvatarOption('shaggy', 'Shaggy'),
+  AvatarOption('shaggyMullet', 'Mullet'),
+  AvatarOption('shavedSides', 'Degradê'),
+  AvatarOption('shortCurly', 'C. Curly'),
+  AvatarOption('shortFlat', 'C. Liso'),
+  AvatarOption('shortRound', 'C. Redondo'),
+  AvatarOption('shortWaved', 'C. Ondas'),
+  AvatarOption('sides', 'Lateral'),
+  AvatarOption('straight01', 'Liso 1'),
+  AvatarOption('straight02', 'Liso 2'),
+  AvatarOption('straightAndStrand', 'Liso +'),
+  AvatarOption('theCaesar', 'Caesar'),
+  AvatarOption('theCaesarAndSidePart', 'Caesar L'),
+  AvatarOption('turban', 'Turbante'),
+  AvatarOption('winterHat1', 'Inverno 1'),
+  AvatarOption('winterHat02', 'Inverno 2'),
+  AvatarOption('winterHat03', 'Inverno 3'),
+  AvatarOption('winterHat04', 'Inverno 4'),
 ];
 
 const _eyeOptions = [
-  AvatarOption('default',    'Default'),
-  AvatarOption('happy',      'Happy'),
-  AvatarOption('wink',       'Wink'),
-  AvatarOption('hearts',     'Hearts'),
-  AvatarOption('squint',     'Squint'),
-  AvatarOption('surprised',  'Surprised'),
-  AvatarOption('side',       'Side'),
-  AvatarOption('cry',        'Cry'),
-  AvatarOption('eyeRoll',    'Roll'),
-  AvatarOption('xDizzy',     'Dizzy'),
+  AvatarOption('default', 'Default'),
+  AvatarOption('happy', 'Happy'),
+  AvatarOption('wink', 'Wink'),
+  AvatarOption('winkWacky', 'Wacky'),
+  AvatarOption('hearts', 'Hearts'),
+  AvatarOption('squint', 'Squint'),
+  AvatarOption('surprised', 'Surprised'),
+  AvatarOption('side', 'Side'),
+  AvatarOption('closed', 'Closed'),
+  AvatarOption('cry', 'Cry'),
+  AvatarOption('eyeRoll', 'Roll'),
+  AvatarOption('xDizzy', 'Dizzy'),
 ];
 
 const _eyebrowOptions = [
-  AvatarOption('default',                'Default'),
-  AvatarOption('defaultNatural',         'Natural'),
-  AvatarOption('raisedExcited',          'Excited'),
-  AvatarOption('raisedExcitedNatural',   'Excited+'),
-  AvatarOption('angry',                  'Angry'),
-  AvatarOption('angryNatural',           'Angry+'),
-  AvatarOption('sadConcerned',           'Sad'),
-  AvatarOption('sadConcernedNatural',    'Sad+'),
-  AvatarOption('upDown',                 'Up-Down'),
-  AvatarOption('unibrowNatural',         'Unibrow'),
-  AvatarOption('flatNatural',            'Flat'),
+  AvatarOption('default', 'Default'),
+  AvatarOption('defaultNatural', 'Natural'),
+  AvatarOption('raisedExcited', 'Excited'),
+  AvatarOption('raisedExcitedNatural', 'Excited+'),
+  AvatarOption('angry', 'Angry'),
+  AvatarOption('angryNatural', 'Angry+'),
+  AvatarOption('sadConcerned', 'Sad'),
+  AvatarOption('sadConcernedNatural', 'Sad+'),
+  AvatarOption('flatNatural', 'Flat'),
+  AvatarOption('frownNatural', 'Frown'),
+  AvatarOption('unibrowNatural', 'Unibrow'),
+  AvatarOption('upDown', 'Up-Down'),
+  AvatarOption('upDownNatural', 'Up-Down+'),
 ];
 
 const _mouthOptions = [
-  AvatarOption('smile',       'Smile'),
-  AvatarOption('default',     'Default'),
-  AvatarOption('serious',     'Serious'),
-  AvatarOption('tongue',      'Tongue'),
-  AvatarOption('twinkle',     'Twinkle'),
-  AvatarOption('sad',         'Sad'),
-  AvatarOption('screamOpen',  'Scream'),
-  AvatarOption('eating',      'Eating'),
-  AvatarOption('grimace',     'Grimace'),
-  AvatarOption('disbelief',   'Disbelief'),
+  AvatarOption('smile', 'Smile'),
+  AvatarOption('default', 'Default'),
+  AvatarOption('serious', 'Serious'),
+  AvatarOption('tongue', 'Tongue'),
+  AvatarOption('twinkle', 'Twinkle'),
+  AvatarOption('sad', 'Sad'),
+  AvatarOption('concerned', 'Concerned'),
+  AvatarOption('screamOpen', 'Scream'),
+  AvatarOption('eating', 'Eating'),
+  AvatarOption('grimace', 'Grimace'),
+  AvatarOption('disbelief', 'Disbelief'),
+  AvatarOption('vomit', 'Vomit'),
 ];
 
 const _accessoryOptions = [
-  AvatarOption('blank',          'Nenhum'),
-  AvatarOption('prescription01', 'Prescrição 1'),
-  AvatarOption('prescription02', 'Prescrição 2'),
-  AvatarOption('round',          'Redondo'),
-  AvatarOption('kurt',           'Kurt'),
-  AvatarOption('sunglasses',     'Sol'),
-  AvatarOption('wayfarers',      'Wayfarer'),
-  AvatarOption('eyepatch',       'Monóculo'),
+  AvatarOption('blank', 'Nenhum'),
+  AvatarOption('prescription01', 'Presc. 1'),
+  AvatarOption('prescription02', 'Presc. 2'),
+  AvatarOption('round', 'Redondo'),
+  AvatarOption('kurt', 'Kurt'),
+  AvatarOption('sunglasses', 'Sol'),
+  AvatarOption('wayfarers', 'Wayfarer'),
+  AvatarOption('eyepatch', 'Monóculo'),
 ];
 
 const _facialHairOptions = [
-  AvatarOption('blank',           'Nenhum'),
-  AvatarOption('beardLight',      'Leve'),
-  AvatarOption('beardMedium',     'Médio'),
-  AvatarOption('beardMajestic',   'Majestoso'),
-  AvatarOption('moustacheFancy',  'Bigode'),
+  AvatarOption('blank', 'Nenhum'),
+  AvatarOption('beardLight', 'Leve'),
+  AvatarOption('beardMedium', 'Médio'),
+  AvatarOption('beardMajestic', 'Majestoso'),
+  AvatarOption('moustacheFancy', 'Bigode'),
   AvatarOption('moustacheMagnum', 'Magnum'),
 ];
 
 const _clotheOptions = [
-  AvatarOption('shirtCrewNeck',    'Camiseta'),
-  AvatarOption('shirtScoopNeck',   'Decote'),
-  AvatarOption('shirtVNeck',       'V-Neck'),
-  AvatarOption('hoodie',           'Moletom'),
-  AvatarOption('blazerAndShirt',   'Blazer'),
+  AvatarOption('shirtCrewNeck', 'Camiseta'),
+  AvatarOption('shirtScoopNeck', 'Decote'),
+  AvatarOption('shirtVNeck', 'V-Neck'),
+  AvatarOption('hoodie', 'Moletom'),
+  AvatarOption('blazerAndShirt', 'Blazer'),
   AvatarOption('blazerAndSweater', 'Blazer+'),
   AvatarOption('collarAndSweater', 'Colarinho'),
-  AvatarOption('overall',          'Macacão'),
-  AvatarOption('graphicShirt',     'Estampada'),
+  AvatarOption('overall', 'Macacão'),
+  AvatarOption('graphicShirt', 'Estampada'),
+];
+
+const _clothingGraphicOptions = [
+  AvatarOption('blank', 'Nenhum'),
+  AvatarOption('bat', 'Morcego'),
+  AvatarOption('bear', 'Urso'),
+  AvatarOption('cumbia', 'Cumbia'),
+  AvatarOption('deer', 'Cervo'),
+  AvatarOption('diamond', 'Diamante'),
+  AvatarOption('hola', 'Hola'),
+  AvatarOption('pizza', 'Pizza'),
+  AvatarOption('resist', 'Resist'),
+  AvatarOption('skull', 'Caveira'),
+  AvatarOption('skullOutline', 'Caveira+'),
 ];
 
 // ── Named hair color → hex (from liveness detection) ────────────────────────
@@ -142,63 +229,85 @@ class _AvatarState {
   final String skinColor;
   final String top;
   final String hairColor;
+  final String hatColor;
   final String eyeType;
   final String eyebrowType;
   final String mouthType;
   final String facialHairType;
+  final String facialHairColor;
   final String accessories;
+  final String accessoriesColor;
   final String clotheType;
   final String clotheColor;
+  final String clothingGraphic;
 
   const _AvatarState({
     required this.skinColor,
     required this.top,
     required this.hairColor,
+    required this.hatColor,
     required this.eyeType,
     required this.eyebrowType,
     required this.mouthType,
     required this.facialHairType,
+    required this.facialHairColor,
     required this.accessories,
+    required this.accessoriesColor,
     required this.clotheType,
     required this.clotheColor,
+    required this.clothingGraphic,
   });
 
   _AvatarState copyWith({
     String? skinColor,
     String? top,
     String? hairColor,
+    String? hatColor,
     String? eyeType,
     String? eyebrowType,
     String? mouthType,
     String? facialHairType,
+    String? facialHairColor,
     String? accessories,
+    String? accessoriesColor,
     String? clotheType,
     String? clotheColor,
+    String? clothingGraphic,
   }) =>
       _AvatarState(
-        skinColor:      skinColor      ?? this.skinColor,
-        top:            top            ?? this.top,
-        hairColor:      hairColor      ?? this.hairColor,
-        eyeType:        eyeType        ?? this.eyeType,
-        eyebrowType:    eyebrowType    ?? this.eyebrowType,
-        mouthType:      mouthType      ?? this.mouthType,
+        skinColor: skinColor ?? this.skinColor,
+        top: top ?? this.top,
+        hairColor: hairColor ?? this.hairColor,
+        hatColor: hatColor ?? this.hatColor,
+        eyeType: eyeType ?? this.eyeType,
+        eyebrowType: eyebrowType ?? this.eyebrowType,
+        mouthType: mouthType ?? this.mouthType,
         facialHairType: facialHairType ?? this.facialHairType,
-        accessories:    accessories    ?? this.accessories,
-        clotheType:     clotheType     ?? this.clotheType,
-        clotheColor:    clotheColor    ?? this.clotheColor,
+        facialHairColor: facialHairColor ?? this.facialHairColor,
+        accessories: accessories ?? this.accessories,
+        accessoriesColor: accessoriesColor ?? this.accessoriesColor,
+        clotheType: clotheType ?? this.clotheType,
+        clotheColor: clotheColor ?? this.clotheColor,
+        clothingGraphic: clothingGraphic ?? this.clothingGraphic,
       );
 
   Map<String, dynamic> toMap() {
     final m = <String, dynamic>{
-      'skinColor':    skinColor,
-      'top':          top,
-      'hairColor':    hairColor,
-      'eyes':         eyeType,
-      'eyebrows':     eyebrowType,
-      'mouth':        mouthType,
-      'clothing':     clotheType,
+      'skinColor': skinColor,
+      'top': top,
+      'hairColor': hairColor,
+      'hatColor': hatColor,
+      'eyes': eyeType,
+      'eyebrows': eyebrowType,
+      'mouth': mouthType,
+      'clothing': clotheType,
       'clothesColor': clotheColor,
+      'accessoriesColor': accessoriesColor,
+      'facialHairColor': facialHairColor,
     };
+    if (clothingGraphic != 'blank') {
+      m['clothingGraphic'] = clothingGraphic;
+    }
     if (facialHairType != 'blank') {
       m['facialHair'] = facialHairType;
       m['facialHairProbability'] = '100';
@@ -211,25 +320,46 @@ class _AvatarState {
   }
 
   String buildUrl(String seed) {
-    return Uri.https('api.dicebear.com', '/7.x/avataaars/svg', {
+    return Uri.https('api.dicebear.com', '/9.x/avataaars/svg', {
       'seed': seed,
-      'backgroundColor': 'b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf',
+      'backgroundColor': 'transparent',
       ...toMap().map((k, v) => MapEntry(k, v.toString())),
     }).toString();
   }
 }
 
-const _defaultState = _AvatarState(
-  skinColor:      'fddcb5',
-  top:            'ShortHairShortCurly',
-  hairColor:      '724133',
-  eyeType:        'Default',
-  eyebrowType:    'Default',
-  mouthType:      'Smile',
+const _defaultMale = _AvatarState(
+  skinColor: 'fddcb5',
+  top: 'shortCurly',
+  hairColor: '724133',
+  hatColor: '3c4f5c',
+  eyeType: 'default',
+  eyebrowType: 'default',
+  mouthType: 'smile',
   facialHairType: 'blank',
-  accessories:    'blank',
-  clotheType:     'ShirtCrewNeck',
-  clotheColor:    '3c4f5c',
+  facialHairColor: '2c1b18',
+  accessories: 'blank',
+  accessoriesColor: '3c4f5c',
+  clotheType: 'shirtCrewNeck',
+  clotheColor: '3c4f5c',
+  clothingGraphic: 'blank',
+);
+
+const _defaultFemale = _AvatarState(
+  skinColor: 'fddcb5',
+  top: 'longButNotTooLong',
+  hairColor: '724133',
+  hatColor: '3c4f5c',
+  eyeType: 'default',
+  eyebrowType: 'default',
+  mouthType: 'smile',
+  facialHairType: 'blank',
+  facialHairColor: '2c1b18',
+  accessories: 'blank',
+  accessoriesColor: '3c4f5c',
+  clotheType: 'shirtScoopNeck',
+  clotheColor: 'ffafb9',
+  clothingGraphic: 'blank',
 );
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -251,20 +381,48 @@ class _AvatarScreenState extends ConsumerState<AvatarScreen> {
   String _previewUrl = '';
   String _cachedSeed = '';
 
+  final List<_AvatarState> _history = [];
+  int _historyIndex = -1;
+
   @override
   void initState() {
     super.initState();
     _livenessDefaults = _buildDefaults();
     _state = _livenessDefaults;
+    _pushHistory(_state);
     _previewUrl = _state.buildUrl('preview');
     _cachedSeed = 'preview';
   }
 
-  void _setAvatarState(_AvatarState newState) {
+  void _pushHistory(_AvatarState s) {
+    if (_historyIndex < _history.length - 1) {
+      _history.removeRange(_historyIndex + 1, _history.length);
+    }
+    _history.add(s);
+    if (_history.length > 50) _history.removeAt(0);
+    _historyIndex = _history.length - 1;
+  }
+
+  void _undo() {
+    if (_historyIndex > 0) {
+      _historyIndex--;
+      _setAvatarState(_history[_historyIndex], skipHistory: true);
+    }
+  }
+
+  void _redo() {
+    if (_historyIndex < _history.length - 1) {
+      _historyIndex++;
+      _setAvatarState(_history[_historyIndex], skipHistory: true);
+    }
+  }
+
+  void _setAvatarState(_AvatarState newState, {bool skipHistory = false}) {
     setState(() {
       _state = newState;
       _previewUrl = newState.buildUrl(_cachedSeed);
     });
+    if (!skipHistory) _pushHistory(newState);
   }
 
   _AvatarState _buildDefaults() {
@@ -273,16 +431,24 @@ class _AvatarScreenState extends ConsumerState<AvatarScreen> {
     final hairName = appearance['hair_color'] as String? ?? 'brown';
     final hasGlasses = appearance['has_glasses'] as bool? ?? false;
     final hasBeard = appearance['has_beard'] as bool? ?? false;
-    return _defaultState.copyWith(
-      hairColor:      _namedHairToHex[hairName] ?? '724133',
-      accessories:    hasGlasses ? 'prescription01' : 'blank',
-      facialHairType: hasBeard   ? 'beardMedium'   : 'blank',
+
+    final onboardState = ref.read(onboardingControllerProvider);
+    final isFemale = onboardState.gender == 'female';
+    final base = isFemale ? _defaultFemale : _defaultMale;
+
+    return base.copyWith(
+      hairColor: _namedHairToHex[hairName] ?? '724133',
+      facialHairColor: _namedHairToHex[hairName] ?? '2c1b18',
+      accessories: hasGlasses ? 'prescription01' : 'blank',
+      facialHairType: hasBeard ? 'beardMedium' : 'blank',
     );
   }
 
   Future<void> _confirm() async {
     if (ref.read(onboardingControllerProvider).isLoading) return;
-    ref.read(onboardingControllerProvider.notifier).setAppearance(_state.toMap());
+    ref
+        .read(onboardingControllerProvider.notifier)
+        .setAppearance(_state.toMap());
     final ok = await ref
         .read(onboardingControllerProvider.notifier)
         .saveAvatar('custom');
@@ -311,7 +477,6 @@ class _AvatarScreenState extends ConsumerState<AvatarScreen> {
       ),
       child: Column(
         children: [
-          // ── Preview + reset ──────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
             child: Stack(
@@ -331,37 +496,46 @@ class _AvatarScreenState extends ConsumerState<AvatarScreen> {
                 ),
                 Padding(
                   padding: const EdgeInsets.all(10),
-                  child: GestureDetector(
-                    onTap: () => _setAvatarState(_livenessDefaults),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: TwColors.card,
-                        borderRadius: BorderRadius.circular(TwRadius.md),
-                        border: Border.all(color: TwColors.border),
-                      ),
-                      child: Text(
-                        'Resetar',
-                        style: GoogleFonts.spaceGrotesk(
-                          color: TwColors.muted,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _actionBtn(Icons.undo, _historyIndex > 0, _undo),
+                      const SizedBox(width: 4),
+                      _actionBtn(Icons.redo,
+                          _historyIndex < _history.length - 1, _redo),
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: () => _setAvatarState(_livenessDefaults),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: TwColors.card,
+                            borderRadius: BorderRadius.circular(TwRadius.md),
+                            border: Border.all(color: TwColors.border),
+                          ),
+                          child: Text(
+                            'Resetar',
+                            style: GoogleFonts.spaceGrotesk(
+                              color: TwColors.muted,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-          // ── Options area ─────────────────────────────────────────────────
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: _buildTabContent(),
             ),
           ),
-          // ── Tab bar ───────────────────────────────────────────────────────
           _buildTabBar(),
           if (state.error != null)
             Padding(
@@ -372,10 +546,12 @@ class _AvatarScreenState extends ConsumerState<AvatarScreen> {
                 decoration: BoxDecoration(
                   color: TwColors.error.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(TwRadius.md),
-                  border: Border.all(color: TwColors.error.withValues(alpha: 0.3)),
+                  border:
+                      Border.all(color: TwColors.error.withValues(alpha: 0.3)),
                 ),
                 child: Text(state.error!,
-                    style: GoogleFonts.spaceGrotesk(color: TwColors.error, fontSize: 13)),
+                    style: GoogleFonts.spaceGrotesk(
+                        color: TwColors.error, fontSize: 13)),
               ),
             ),
         ],
@@ -385,11 +561,11 @@ class _AvatarScreenState extends ConsumerState<AvatarScreen> {
 
   Widget _buildTabBar() {
     const tabs = [
-      (_AvatarTab.skin,        Icons.face,                  'Pele'),
-      (_AvatarTab.hair,        Icons.waves,                 'Cabelo'),
-      (_AvatarTab.face,        Icons.sentiment_satisfied,   'Rosto'),
-      (_AvatarTab.accessories, Icons.style,                 'Acess.'),
-      (_AvatarTab.clothes,     Icons.checkroom,             'Roupa'),
+      (_AvatarTab.skin, Icons.face, 'Pele'),
+      (_AvatarTab.hair, Icons.waves, 'Cabelo'),
+      (_AvatarTab.face, Icons.sentiment_satisfied, 'Rosto'),
+      (_AvatarTab.accessories, Icons.style, 'Acess.'),
+      (_AvatarTab.clothes, Icons.checkroom, 'Roupa'),
     ];
     return Container(
       margin: const EdgeInsets.fromLTRB(24, 0, 24, 8),
@@ -416,13 +592,16 @@ class _AvatarScreenState extends ConsumerState<AvatarScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(icon, size: 18, color: isActive ? Colors.white : TwColors.muted),
+                    Icon(icon,
+                        size: 18,
+                        color: isActive ? Colors.white : TwColors.muted),
                     const SizedBox(height: 2),
                     Text(
                       label,
                       style: GoogleFonts.spaceGrotesk(
                         fontSize: 10,
-                        fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                        fontWeight:
+                            isActive ? FontWeight.w700 : FontWeight.w500,
                         color: isActive ? Colors.white : TwColors.muted,
                       ),
                     ),
@@ -438,11 +617,11 @@ class _AvatarScreenState extends ConsumerState<AvatarScreen> {
 
   Widget _buildTabContent() {
     return switch (_tab) {
-      _AvatarTab.skin        => _buildSkinTab(),
-      _AvatarTab.hair        => _buildHairTab(),
-      _AvatarTab.face        => _buildFaceTab(),
+      _AvatarTab.skin => _buildSkinTab(),
+      _AvatarTab.hair => _buildHairTab(),
+      _AvatarTab.face => _buildFaceTab(),
       _AvatarTab.accessories => _buildAccessoriesTab(),
-      _AvatarTab.clothes     => _buildClothesTab(),
+      _AvatarTab.clothes => _buildClothesTab(),
     };
   }
 
@@ -485,6 +664,14 @@ class _AvatarScreenState extends ConsumerState<AvatarScreen> {
             colors: _hairColors,
             selected: _state.hairColor,
             onChanged: (v) => _setAvatarState(_state.copyWith(hairColor: v)),
+          ),
+          const SizedBox(height: 16),
+          _sectionLabel('Cor do chapéu'),
+          const SizedBox(height: 10),
+          ColorSwatchGrid(
+            colors: _accessoryColors,
+            selected: _state.hatColor,
+            onChanged: (v) => _setAvatarState(_state.copyWith(hatColor: v)),
           ),
           const SizedBox(height: 16),
         ],
@@ -541,12 +728,31 @@ class _AvatarScreenState extends ConsumerState<AvatarScreen> {
             onChanged: (v) => _setAvatarState(_state.copyWith(accessories: v)),
           ),
           const SizedBox(height: 16),
+          _sectionLabel('Cor do acessório'),
+          const SizedBox(height: 10),
+          ColorSwatchGrid(
+            colors: _accessoryColors,
+            selected: _state.accessoriesColor,
+            onChanged: (v) =>
+                _setAvatarState(_state.copyWith(accessoriesColor: v)),
+          ),
+          const SizedBox(height: 16),
           _sectionLabel('Barba / Bigode'),
           const SizedBox(height: 10),
           OptionCardList(
             options: _facialHairOptions,
             selected: _state.facialHairType,
-            onChanged: (v) => _setAvatarState(_state.copyWith(facialHairType: v)),
+            onChanged: (v) =>
+                _setAvatarState(_state.copyWith(facialHairType: v)),
+          ),
+          const SizedBox(height: 16),
+          _sectionLabel('Cor da barba'),
+          const SizedBox(height: 10),
+          ColorSwatchGrid(
+            colors: _hairColors,
+            selected: _state.facialHairColor,
+            onChanged: (v) =>
+                _setAvatarState(_state.copyWith(facialHairColor: v)),
           ),
           const SizedBox(height: 16),
         ],
@@ -576,7 +782,35 @@ class _AvatarScreenState extends ConsumerState<AvatarScreen> {
             onChanged: (v) => _setAvatarState(_state.copyWith(clotheColor: v)),
           ),
           const SizedBox(height: 16),
+          if (_state.clotheType == 'graphicShirt') ...[
+            _sectionLabel('Estampa'),
+            const SizedBox(height: 10),
+            OptionCardList(
+              options: _clothingGraphicOptions,
+              selected: _state.clothingGraphic,
+              onChanged: (v) =>
+                  _setAvatarState(_state.copyWith(clothingGraphic: v)),
+            ),
+            const SizedBox(height: 16),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _actionBtn(IconData icon, bool enabled, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        width: 30,
+        height: 30,
+        decoration: BoxDecoration(
+          color: TwColors.card,
+          borderRadius: BorderRadius.circular(TwRadius.md),
+          border: Border.all(color: TwColors.border),
+        ),
+        child: Icon(icon,
+            size: 16, color: enabled ? TwColors.onSurface : TwColors.muted),
       ),
     );
   }

@@ -7,6 +7,7 @@ class OnboardingState {
   final int currentStep;
   final String? userId;
   final String? userName;
+  final String gender;
   final Map<String, dynamic>? appearance;
   final List<String> hobbies;
   final String? avatarUrl;
@@ -17,6 +18,7 @@ class OnboardingState {
     this.currentStep = 1,
     this.userId,
     this.userName,
+    this.gender = '',
     this.appearance,
     this.hobbies = const [],
     this.avatarUrl,
@@ -28,6 +30,7 @@ class OnboardingState {
     int? currentStep,
     String? userId,
     String? userName,
+    String? gender,
     Map<String, dynamic>? appearance,
     List<String>? hobbies,
     String? avatarUrl,
@@ -38,6 +41,7 @@ class OnboardingState {
         currentStep: currentStep ?? this.currentStep,
         userId: userId ?? this.userId,
         userName: userName ?? this.userName,
+        gender: gender ?? this.gender,
         appearance: appearance ?? this.appearance,
         hobbies: hobbies ?? this.hobbies,
         avatarUrl: avatarUrl ?? this.avatarUrl,
@@ -71,13 +75,15 @@ class OnboardingController extends StateNotifier<OnboardingState> {
 
   void setUserId(String id) => state = state.copyWith(userId: id);
 
+  void setGender(String gender) => state = state.copyWith(gender: gender);
+
   Future<bool> register({
     required String name,
     required String birthDate,
     required String sexualOrientation,
     String gender = '',
   }) async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true, error: null, gender: gender);
     try {
       await _refreshToken();
       final resp = await apiClient.post('/auth/register', data: {
