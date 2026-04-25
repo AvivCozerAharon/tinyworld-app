@@ -118,6 +118,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
   bool _skipping = false;
   double _speed = 1.0;
   int _replyingToIndex = -1;
+  late AnimationController _cursorCtrl;
 
   static String _avatarUrl(String seed) =>
       'https://api.dicebear.com/7.x/avataaars/svg?seed=${Uri.encodeComponent(seed)}&backgroundColor=1C1C2E';
@@ -158,6 +159,10 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
   void initState() {
     super.initState();
     _typingSide = Alignment.centerLeft;
+    _cursorCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    )..repeat(reverse: true);
     if (widget.isLive) {
       _startLiveStream();
     } else {
@@ -694,6 +699,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
     _scrollCtrl.dispose();
     _inputCtrl.dispose();
     _wsChannel?.sink.close();
+    _cursorCtrl.dispose();
     super.dispose();
   }
 
@@ -985,10 +991,14 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
                   _buildInlineSenderLabel(
                       _labelFor(_streamingAgentId),
                       _colorFor(_streamingAgentId)),
-                  _buildBubble(
-                    text: _streamingText,
-                    isMe: isMe,
-                    isStreaming: true,
+                  AnimatedBuilder(
+                    animation: _cursorCtrl,
+                    builder: (_, __) => _buildBubble(
+                      text: _streamingText,
+                      isMe: isMe,
+                      isStreaming: true,
+                      cursorOpacity: _cursorCtrl.value,
+                    ),
                   ),
                 ],
               ),
@@ -1186,6 +1196,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
     required bool isMe,
     bool isStreaming = false,
     int? interesse,
+    double? cursorOpacity,
   }) {
     final borderColor = isMe ? null : _interestBorder(interesse);
 
@@ -1204,8 +1215,21 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
             ? Border.all(color: borderColor, width: 1.5)
             : null,
       ),
-      child: Text(
-        text,
+      child: Text.rich(
+        TextSpan(
+          text: text,
+          children: cursorOpacity != null
+              ? [
+                  TextSpan(
+                    text: '|',
+                    style: TextStyle(
+                      color: (isMe ? Colors.white : TwColors.onBg)
+                          .withValues(alpha: cursorOpacity),
+                    ),
+                  ),
+                ]
+              : null,
+        ),
         style: GoogleFonts.spaceGrotesk(
           color: isMe ? Colors.white : TwColors.onBg,
           fontSize: 14,
