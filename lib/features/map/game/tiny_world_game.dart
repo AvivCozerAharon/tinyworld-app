@@ -12,7 +12,8 @@ class TinyWorldGame extends FlameGame {
 
   // Open ground tiles visible in the camera window (cols ~20–34, all rows).
   // Adjust any slot that visually lands on a building/prop after first run.
-  static final Vector2 _worldCenter = Vector2(_camCenterCol * _tileSize, _camCenterRow * _tileSize);
+  static const double _worldCenterX = _camCenterCol * _tileSize;
+  static const double _worldCenterY = _camCenterRow * _tileSize;
 
   static const List<(int, int)> _npcSlots = [
     (22, 4),  (24, 7),  (26, 2),  (28, 5),  (30, 9),
@@ -48,7 +49,10 @@ class TinyWorldGame extends FlameGame {
   // World → screen using the fixed camera constants.
   Vector2 _worldToScreen(Vector2 worldPos) {
     final screenCenter = size / 2;
-    return (worldPos - _worldCenter) * _zoom + screenCenter;
+    return Vector2(
+      (worldPos.x - _worldCenterX) * _zoom + screenCenter.x,
+      (worldPos.y - _worldCenterY) * _zoom + screenCenter.y,
+    );
   }
 
   (int, int)? _nextFreeSlot() {
@@ -60,7 +64,7 @@ class TinyWorldGame extends FlameGame {
   }
 
   void updateState(MapState state) {
-    if (size == Vector2.zero()) return;
+    if (size.x == 0 && size.y == 0) return;
     final activeIds = state.activeSimulations.map((s) => s.jobId).toSet();
 
     _npcs.removeWhere((id, npc) {
