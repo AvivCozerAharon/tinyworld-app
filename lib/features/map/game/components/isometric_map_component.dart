@@ -10,7 +10,7 @@ Vector2 isoToScreen(int col, int row, double halfW, double halfH, Vector2 origin
   );
 }
 
-class IsometricMapComponent extends PositionComponent with HasGameReference {
+class IsometricMapComponent extends PositionComponent {
   final MapLayout layout;
   final double tileHalfWidth;
   final double tileHalfHeight;
@@ -31,15 +31,25 @@ class IsometricMapComponent extends PositionComponent with HasGameReference {
 
   @override
   Future<void> onLoad() async {
+    await super.onLoad();
+
     final tileSize = Vector2(tileHalfWidth * 2, tileHalfHeight * 2);
 
-    // Ground tiles — rendered back to front via priority = col + row
+    // Load all distinct sprites concurrently
+    final assetPaths = <String>{
+      ...layout.tiles.map((t) => _assetForTile(t.type)),
+      ...layout.buildings.map((b) => b.assetPath),
+    };
+    final spriteEntries = await Future.wait(
+      assetPaths.map((p) async => MapEntry(p, await Sprite.load(p))),
+    );
+    final sprites = Map.fromEntries(spriteEntries);
+
     for (final tile in layout.tiles) {
-      final sprite = await Sprite.load(_assetForTile(tile.type));
       final pos = isoToScreen(tile.col, tile.row, tileHalfWidth, tileHalfHeight, origin);
       add(
         SpriteComponent(
-          sprite: sprite,
+          sprite: sprites[_assetForTile(tile.type)]!,
           position: pos,
           size: tileSize,
           anchor: Anchor.topCenter,
@@ -47,15 +57,12 @@ class IsometricMapComponent extends PositionComponent with HasGameReference {
       );
     }
 
-    // Buildings — rendered above tiles at same grid position
     for (final bld in layout.buildings) {
-      final sprite = await Sprite.load(bld.assetPath);
       final pos = isoToScreen(bld.col, bld.row, tileHalfWidth, tileHalfHeight, origin);
-      // Buildings are taller: 2x tile height
       final bldSize = Vector2(tileSize.x, tileSize.y * 2);
       add(
         SpriteComponent(
-          sprite: sprite,
+          sprite: sprites[bld.assetPath]!,
           position: pos,
           size: bldSize,
           anchor: Anchor.bottomCenter,
