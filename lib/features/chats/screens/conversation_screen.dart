@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:tinyworld_app/core/api/rest_client.dart';
 import 'package:tinyworld_app/core/api/sse_client.dart';
@@ -9,9 +11,12 @@ import 'package:tinyworld_app/core/theme/styles.dart';
 import 'package:tinyworld_app/features/chats/chats_controller.dart';
 import 'package:tinyworld_app/features/chats/widgets/humanize_button.dart';
 import 'package:tinyworld_app/features/chats/widgets/typing_indicator.dart';
+import 'package:tinyworld_app/features/chats/widgets/compatibility_result_card.dart';
+import 'package:tinyworld_app/features/chats/widgets/chat_input_bar.dart';
+import 'package:tinyworld_app/features/chats/widgets/speed_button.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-enum _ViewMode { loading, replaying, replayDone, liveStreaming, humanized }
+enum _ViewMode { loading, replaying, replayDone, liveStreaming, humanized, error }
 
 class _ChatMsg {
   final String agentId;
@@ -22,7 +27,10 @@ class _ChatMsg {
   final int? interesse;
   final int? engajamento;
   final bool? continua;
+  final bool isHuman;
   String? reaction;
+  String? replyText;
+  String? replyLabel;
 
   _ChatMsg({
     required this.agentId,
@@ -33,17 +41,31 @@ class _ChatMsg {
     this.interesse,
     this.engajamento,
     this.continua,
+    this.isHuman = false,
+    this.reaction,
+    this.replyText,
+    this.replyLabel,
   });
+
+  _ChatMsg withReply({String? text, String? label}) {
+    return _ChatMsg(
+      agentId: agentId,
+      text: text ?? this.text,
+      isMe: isMe,
+      senderLabel: senderLabel,
+      senderColor: senderColor,
+      interesse: interesse,
+      engajamento: engajamento,
+      continua: continua,
+      isHuman: isHuman,
+      reaction: reaction,
+      replyText: text != null ? this.text : replyText,
+      replyLabel: text != null ? label : replyLabel,
+    );
+  }
 }
 
 const _reactionEmojis = ['❤️', '😄', '😮', '🔥', '😂', '👏'];
-
-const _compatPhrases = [
-  (0, 30, 'Conexão fraca — mas toda amizade começa em algum lugar.'),
-  (30, 60, 'Boa energia! Vocês têm bastante em comum.'),
-  (60, 80, 'Ótima química! Essa poderia ser uma amizade incrível.'),
-  (80, 101, 'Conexão rara! Vocês foram feitos um para o outro.'),
-];
 
 class ConversationScreen extends ConsumerStatefulWidget {
   final String simId;
@@ -59,6 +81,7 @@ class ConversationScreen extends ConsumerStatefulWidget {
 class _ConversationScreenState extends ConsumerState<ConversationScreen>
     with TickerProviderStateMixin {
   _ViewMode _mode = _ViewMode.loading;
+  String? _errorMsg;
   final List<_ChatMsg> _messages = [];
   bool _showTyping = false;
   late Alignment _typingSide;
@@ -68,7 +91,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
   final ScrollController _scrollCtrl = ScrollController();
   final TextEditingController _inputCtrl = TextEditingController();
   WebSocketChannel? _wsChannel;
-  Stream? _sseStream;
+  StreamSubscription? _sseSub;
 
   String? _userId;
   String? _token;
@@ -76,10 +99,10 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
   String? _userBId;
   String _labelMe = 'Você';
   String _labelOther = 'Amigo';
+  String? _otherAvatarUrl;
   static const _colorMe = TwColors.primary;
   static const _colorOther = TwColors.secondary;
 
-  // streaming token state
   String _streamingAgentId = '';
   String _streamingText = '';
 
@@ -93,9 +116,31 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
   List<Map<String, dynamic>> _pendingTurns = [];
   bool _disposed = false;
   bool _skipping = false;
-
-  // Speed: 1.0, 1.5, 2.0
   double _speed = 1.0;
+  int _replyingToIndex = -1;
+  late AnimationController _cursorCtrl;
+
+  static String _avatarUrl(String seed) =>
+      'https://api.dicebear.com/7.x/avataaars/svg?seed=${Uri.encodeComponent(seed)}&backgroundColor=1C1C2E';
+
+  Widget _buildAvatarWidget(String seed) {
+    return ClipOval(
+      child: SvgPicture.network(
+        _avatarUrl(seed),
+        width: 24,
+        height: 24,
+        placeholderBuilder: (_) => Container(
+          width: 24,
+          height: 24,
+          decoration: const BoxDecoration(
+            color: TwColors.card,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.person, size: 14, color: TwColors.muted),
+        ),
+      ),
+    );
+  }
 
   String _labelFor(String agentId) =>
       agentId == _userId ? _labelMe : _labelOther;
@@ -103,10 +148,21 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
   Color _colorFor(String agentId) =>
       agentId == _userId ? _colorMe : _colorOther;
 
+  Color _interestBorder(int? interesse) {
+    if (interesse == null) return TwColors.border;
+    if (interesse >= 7) return const Color(0xFF7B4FFF);
+    if (interesse >= 4) return TwColors.onSurface;
+    return TwColors.muted;
+  }
+
   @override
   void initState() {
     super.initState();
     _typingSide = Alignment.centerLeft;
+    _cursorCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
     if (widget.isLive) {
       _startLiveStream();
     } else {
@@ -140,6 +196,17 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
         _labelOther = nameA ?? _userAId?.substring(0, 6) ?? 'Amigo';
       }
 
+      final otherId = _userAId == _userId ? _userBId : _userAId;
+      if (otherId != null) {
+        try {
+          final otherResp = await apiClient.get('/profile/$otherId');
+          final found = otherResp.data as Map<String, dynamic>;
+          _otherAvatarUrl = found['avatar_url'] as String? ?? '';
+          final name = found['name'] as String?;
+          if (name != null && name.isNotEmpty) _labelOther = name;
+        } catch (_) {}
+      }
+
       final turns = (data['turns'] as List?) ?? [];
       if (turns.isEmpty && _userAId != null && _userBId != null) {
         _loadFullSimulation();
@@ -153,7 +220,10 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
       _checkHumanizedAndLoadHistory();
     } catch (e) {
       if (mounted) {
-        setState(() => _mode = _ViewMode.replayDone);
+        setState(() {
+          _mode = _ViewMode.error;
+          _errorMsg = e.toString();
+        });
       }
     }
   }
@@ -186,6 +256,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
             isMe: isMe,
             senderLabel: isMe ? _labelMe : _labelOther,
             senderColor: isMe ? _colorMe : _colorOther,
+            isHuman: true,
           ));
         }
         _mode = _ViewMode.humanized;
@@ -217,12 +288,12 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
           _showTyping = false;
           _mode = _ViewMode.replayDone;
         });
+        _loadReactions();
       }
       return;
     }
 
     if (_skipping) {
-      // Add remaining turns instantly
       for (int i = index; i < _pendingTurns.length; i++) {
         final t = _pendingTurns[i];
         final agentId = t['agent_id'] as String? ?? '';
@@ -245,6 +316,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
         });
         WidgetsBinding.instance
             .addPostFrameCallback((_) => _scrollToBottom());
+        _loadReactions();
       }
       return;
     }
@@ -292,71 +364,109 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
   void _startLiveStream() async {
     _userId = await localStorage.getUserId();
     _token = await localStorage.getIdToken();
-    setState(() => _mode = _ViewMode.liveStreaming);
-    _sseStream = sseClient.post('/debug/simulate', data: {
+
+    if (_userId == null) {
+      if (mounted) setState(() { _mode = _ViewMode.error; _errorMsg = 'Usuário não identificado.'; });
+      return;
+    }
+
+    try {
+      final otherResp = await apiClient.get('/profile/${widget.simId}');
+      final found = otherResp.data as Map<String, dynamic>;
+      _labelOther = (found['name'] as String?)?.isNotEmpty == true
+          ? found['name'] as String
+          : _labelOther;
+      _otherAvatarUrl = found['avatar_url'] as String? ?? '';
+    } catch (_) {}
+
+    if (mounted) setState(() => _mode = _ViewMode.liveStreaming);
+
+    _sseSub = sseClient.post('/debug/simulate', data: {
       'user_a_id': _userId,
       'user_b_id': widget.simId,
-    }).asBroadcastStream();
+    }).listen(
+      (event) {
+        if (_disposed) return;
+        final data = event.data;
+        if (data == null) return;
+        final type = data['type'] as String? ?? '';
 
-    _sseStream!.listen((event) {
-      final data = event.data;
-      if (data == null) return;
-      final type = data['type'] as String;
-
-      switch (type) {
-        case 'sim.start':
-          _userAId = data['user_a_id'] as String?;
-          _userBId = data['user_b_id'] as String?;
-          break;
-
-        case 'turn.start':
-          final agentId = data['agent_id'] as String? ?? '';
+        switch (type) {
+          case 'sim.start':
+            _userAId = data['user_a_id'] as String?;
+            _userBId = data['user_b_id'] as String?;
+            break;
+          case 'turn.start':
+            final agentId = data['agent_id'] as String? ?? '';
+            if (mounted) {
+              setState(() {
+                _streamingAgentId = agentId;
+                _streamingText = '';
+                _showTyping = false;
+              });
+              _scrollToBottom();
+            }
+            break;
+          case 'token':
+            final token = data['token'] as String? ?? '';
+            if (mounted) {
+              setState(() => _streamingText += token);
+              _scrollToBottom();
+            }
+            break;
+          case 'turn.complete':
+            final turn = data['turn'] as Map<String, dynamic>? ?? {};
+            final agentId = turn['agent_id'] as String? ?? '';
+            final isMe = agentId == _userId;
+            if (mounted) {
+              setState(() {
+                _streamingAgentId = '';
+                _streamingText = '';
+                _totalTurns++;
+                _messages.add(_ChatMsg(
+                  agentId: agentId,
+                  text: turn['resposta'] as String? ?? '',
+                  isMe: isMe,
+                  senderLabel: _labelFor(agentId),
+                  senderColor: _colorFor(agentId),
+                  interesse: turn['interesse'] as int?,
+                  engajamento: turn['engajamento'] as int?,
+                  continua: turn['continua'] as bool?,
+                ));
+              });
+              _scrollToBottom();
+            }
+            break;
+          case 'sim.complete':
+            if (mounted) {
+              setState(() {
+                _compatibility = (data['compatibility'] as num?)?.toDouble();
+                _scoreA = (data['score_a'] as num?)?.toDouble();
+                _scoreB = (data['score_b'] as num?)?.toDouble();
+                _completedTurns = data['completed_turns'] as int?;
+                _earlyStopped = data['early_stopped'] as bool?;
+                _streamingAgentId = '';
+                _streamingText = '';
+                _mode = _ViewMode.replayDone;
+              });
+            }
+            break;
+        }
+      },
+      onError: (e) {
+        if (mounted) {
           setState(() {
-            _streamingAgentId = agentId;
-            _streamingText = '';
-            _showTyping = false;
+            _mode = _ViewMode.error;
+            _errorMsg = 'Erro na simulação ao vivo. Tente novamente.';
           });
-          _scrollToBottom();
-          break;
-
-        case 'token':
-          final token = data['token'] as String? ?? '';
-          setState(() => _streamingText += token);
-          _scrollToBottom();
-          break;
-
-        case 'turn.complete':
-          final turn = data['turn'] as Map<String, dynamic>;
-          final agentId = turn['agent_id'] as String? ?? '';
-          final isMe = agentId == _userId;
-          setState(() {
-            _streamingAgentId = '';
-            _streamingText = '';
-            _totalTurns++;
-            _messages.add(_ChatMsg(
-              agentId: agentId,
-              text: turn['resposta'] as String? ?? '',
-              isMe: isMe,
-              senderLabel: _labelFor(agentId),
-              senderColor: _colorFor(agentId),
-              interesse: turn['interesse'] as int?,
-              engajamento: turn['engajamento'] as int?,
-              continua: turn['continua'] as bool?,
-            ));
-          });
-          _scrollToBottom();
-          break;
-
-        case 'sim.complete':
-          _compatibility = (data['compatibility'] as num).toDouble();
-          _scoreA = (data['score_a'] as num).toDouble();
-          _scoreB = (data['score_b'] as num).toDouble();
-          _completedTurns = data['completed_turns'] as int;
-          _earlyStopped = data['early_stopped'] as bool;
+        }
+      },
+      onDone: () {
+        if (mounted && _mode == _ViewMode.liveStreaming) {
           setState(() => _mode = _ViewMode.replayDone);
-          break;
-      }
-    });
+        }
+      },
+    );
   }
 
   Future<void> _showIcebreakers() async {
@@ -444,6 +554,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
                 isMe: false,
                 senderLabel: _labelOther,
                 senderColor: _colorOther,
+                isHuman: true,
               )));
           _scrollToBottom();
         }
@@ -454,6 +565,14 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
   void _sendMessage() {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty || _mode != _ViewMode.humanized) return;
+    if (_replyingToIndex >= 0 && _replyingToIndex < _messages.length) {
+      final orig = _messages[_replyingToIndex];
+      _messages[_replyingToIndex] = orig.withReply(
+        text: text,
+        label: orig.isMe ? _labelMe : _labelOther,
+      );
+      setState(() => _replyingToIndex = -1);
+    }
     _wsChannel?.sink.add(jsonEncode({'text': text}));
     setState(() => _messages.add(_ChatMsg(
           agentId: _userId ?? '',
@@ -461,6 +580,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
           isMe: true,
           senderLabel: _labelMe,
           senderColor: _colorMe,
+          isHuman: true,
         )));
     _inputCtrl.clear();
     _scrollToBottom();
@@ -470,7 +590,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollCtrl.hasClients) {
         _scrollCtrl.animateTo(
-          _scrollCtrl.position.maxScrollExtent + 100,
+          _scrollCtrl.position.maxScrollExtent + 50,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -491,6 +611,12 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
       } else {
         _speed = 1.0;
       }
+    });
+  }
+
+  void _setReply(int index) {
+    setState(() {
+      _replyingToIndex = _replyingToIndex == index ? -1 : index;
     });
   }
 
@@ -541,16 +667,67 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
     );
     if (selected != null && mounted) {
       setState(() => _messages[msgIndex].reaction = selected);
+      try {
+        await apiClient.post(
+          '/chats/${widget.simId}/reactions/$msgIndex',
+          data: {'emoji': selected},
+        );
+      } catch (_) {}
     }
+  }
+
+  Future<void> _loadReactions() async {
+    try {
+      final resp = await apiClient.get('/chats/${widget.simId}/reactions');
+      final data = resp.data as Map<String, dynamic>;
+      if (!mounted) return;
+      setState(() {
+        for (final entry in data.entries) {
+          final idx = int.tryParse(entry.key);
+          if (idx == null || idx >= _messages.length) continue;
+          final reaction = entry.value as Map<String, dynamic>;
+          _messages[idx].reaction = reaction['emoji'] as String? ?? '';
+        }
+      });
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     _disposed = true;
+    _sseSub?.cancel();
     _scrollCtrl.dispose();
     _inputCtrl.dispose();
     _wsChannel?.sink.close();
+    _cursorCtrl.dispose();
     super.dispose();
+  }
+
+  Widget _buildProgressBar() {
+    if (_mode == _ViewMode.replaying) {
+      final value = _totalTurns > 0
+          ? (_messages.length / _totalTurns).clamp(0.0, 1.0)
+          : 0.0;
+      return SizedBox(
+        height: 2,
+        child: LinearProgressIndicator(
+          value: value,
+          minHeight: 2,
+          backgroundColor: TwColors.border,
+          valueColor: const AlwaysStoppedAnimation<Color>(TwColors.primary),
+        ),
+      );
+    } else if (_mode == _ViewMode.liveStreaming) {
+      return SizedBox(
+        height: 2,
+        child: LinearProgressIndicator(
+          minHeight: 2,
+          backgroundColor: TwColors.border,
+          valueColor: const AlwaysStoppedAnimation<Color>(TwColors.primary),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
   }
 
   @override
@@ -561,120 +738,317 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
     final humanizeState = chat?.humanizeState ?? 'simulated';
 
     return Scaffold(
-      backgroundColor: TwColors.bg,
-      appBar: _buildAppBar(humanizeState),
-      body: Column(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [TwColors.bg, TwColors.surface],
+          ),
+        ),
+        child: Column(
+          children: [
+            _buildAppBar(context, humanizeState),
+            _buildProgressBar(),
+            Expanded(
+              child: _mode == _ViewMode.error
+                  ? _buildErrorState()
+                  : (_mode == _ViewMode.liveStreaming &&
+                          _messages.isEmpty &&
+                          _streamingText.isEmpty &&
+                          _streamingAgentId.isEmpty)
+                      ? _buildLiveLoadingState()
+                  : ListView.builder(
+                      controller: _scrollCtrl,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      itemCount: _messages.length +
+                          (_showTyping ? 1 : 0) +
+                          (_streamingText.isNotEmpty ? 1 : 0) +
+                          1,
+                      itemBuilder: (_, i) {
+                        final extras = (_showTyping ? 1 : 0) +
+                            (_streamingText.isNotEmpty ? 1 : 0);
+                        if (i == _messages.length + extras) {
+                          if (_mode == _ViewMode.replayDone ||
+                              _mode == _ViewMode.humanized) {
+                            return CompatibilityResultCard(
+                              compatibility: _compatibility,
+                              scoreA: _scoreA,
+                              scoreB: _scoreB,
+                              labelMe: _labelMe,
+                              labelOther: _labelOther,
+                              colorMe: _colorMe,
+                              colorOther: _colorOther,
+                              completedTurns: _completedTurns,
+                              earlyStopped: _earlyStopped,
+                              onStartRealChat: humanizeState == 'simulated'
+                                  ? () async {
+                                      final ok = await ref
+                                          .read(chatsControllerProvider.notifier)
+                                          .requestHumanize(widget.simId);
+                                      if (ok && mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Solicitação enviada!')),
+                                        );
+                                      }
+                                    }
+                                  : null,
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        }
+                        if (_showTyping && i == _messages.length) {
+                          return _buildTypingRow();
+                        }
+                        if (_streamingText.isNotEmpty &&
+                            i == _messages.length + (_showTyping ? 1 : 0)) {
+                          return _buildStreamingBubble();
+                        }
+                        return _buildMessage(_messages[i], i);
+                      },
+                    ),
+            ),
+            if (_mode == _ViewMode.humanized)
+              ChatInputBar(
+                controller: _inputCtrl,
+                onSend: _sendMessage,
+                replyingToIndex: _replyingToIndex,
+                onCancelReply: () => setState(() => _replyingToIndex = -1),
+                onReply: _setReply,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppBar(BuildContext context, String humanizeState) {
+    final compatColor = _compatibility != null
+        ? (_compatibility! > 0.7
+            ? TwColors.success
+            : _compatibility! > 0.4
+                ? TwColors.warning
+                : TwColors.error)
+        : TwColors.muted;
+
+    return Container(
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 8,
+        left: 8,
+        right: 8,
+        bottom: 8,
+      ),
+      child: Row(
         children: [
+          IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.arrow_back, color: TwColors.onBg),
+          ),
           Expanded(
-            child: ListView.builder(
-              controller: _scrollCtrl,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              itemCount: _messages.length +
-                  (_showTyping ? 1 : 0) +
-                  (_streamingText.isNotEmpty ? 1 : 0) +
-                  1,
-              itemBuilder: (_, i) {
-                final extras = (_showTyping ? 1 : 0) +
-                    (_streamingText.isNotEmpty ? 1 : 0);
-                if (i == _messages.length + extras) {
-                  if (_mode == _ViewMode.replayDone ||
-                      _mode == _ViewMode.humanized) {
-                    return _buildResultCard(context);
-                  }
-                  return const SizedBox.shrink();
-                }
-                if (_showTyping && i == _messages.length) {
-                  return _buildTypingRow();
-                }
-                if (_streamingText.isNotEmpty &&
-                    i == _messages.length + (_showTyping ? 1 : 0)) {
-                  return _buildStreamingBubble();
-                }
-                return _buildMessage(_messages[i], i);
-              },
+            child: Row(
+              children: [
+                if (_otherAvatarUrl != null && _otherAvatarUrl!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: compatColor, width: 2),
+                      ),
+                      child: ClipOval(
+                        child: Image.network(
+                          _otherAvatarUrl!,
+                          width: 36,
+                          height: 36,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: TwColors.card,
+                            child: const Icon(Icons.person, size: 18, color: TwColors.muted),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _mode == _ViewMode.humanized ? _labelOther : 'Conversa simulada',
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: TwColors.onBg,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        _mode == _ViewMode.replaying
+                            ? '${_messages.length} / $_totalTurns turnos'
+                            : _mode == _ViewMode.liveStreaming
+                                ? 'Ao vivo'
+                                : _mode == _ViewMode.humanized
+                                    ? 'Conexão humana'
+                                    : _mode == _ViewMode.replayDone
+                                        ? (_compatibility != null ? '${(_compatibility! * 100).toInt()}% compatível' : '')
+                                        : '',
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 12,
+                          color: TwColors.muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-          if (_mode == _ViewMode.humanized) _buildInputBar(),
+          if (_mode == _ViewMode.replaying || _mode == _ViewMode.liveStreaming)
+            SpeedButton(speed: _speed, onTap: _cycleSpeed),
+          if (_mode == _ViewMode.replaying)
+            TextButton(
+              onPressed: _skipReplay,
+              child: Text(
+                'Pular',
+                style: GoogleFonts.spaceGrotesk(
+                  color: TwColors.primary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          if (_mode == _ViewMode.replayDone)
+            HumanizeButton(
+                simId: widget.simId, currentState: humanizeState),
         ],
       ),
     );
   }
 
-  AppBar _buildAppBar(String humanizeState) {
-    return AppBar(
-      backgroundColor: TwColors.bg,
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: TwColors.error),
+            const SizedBox(height: 16),
+            Text(
+              'Erro ao carregar conversa',
+              style: GoogleFonts.spaceGrotesk(
+                color: TwColors.onSurface,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _errorMsg ?? 'Tente novamente mais tarde.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.spaceGrotesk(
+                color: TwColors.muted, fontSize: 13, height: 1.4),
+              ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: () {
+                setState(() {
+                  _mode = _ViewMode.loading;
+                  _errorMsg = null;
+                });
+                _loadAndReplay();
+              },
+              icon: const Icon(Icons.refresh),
+              label: const Text('Tentar novamente'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLiveLoadingState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            _mode == _ViewMode.humanized ? _labelOther : 'Conversa simulada',
-            style: GoogleFonts.spaceGrotesk(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: TwColors.onBg,
+          SizedBox(
+            width: 48,
+            height: 48,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                TwColors.primary.withValues(alpha: 0.8),
+              ),
             ),
           ),
+          const SizedBox(height: 20),
           Text(
-            _mode == _ViewMode.replaying
-                ? '${_messages.length} / $_totalTurns turnos'
-                : _mode == _ViewMode.liveStreaming
-                    ? 'Ao vivo'
-                    : _mode == _ViewMode.humanized
-                        ? 'Conexão humana'
-                        : '',
+            'Preparando simulação...',
             style: GoogleFonts.spaceGrotesk(
-              fontSize: 11,
               color: TwColors.muted,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Os agentes estão se conhecendo',
+            style: GoogleFonts.spaceGrotesk(
+              color: TwColors.muted.withValues(alpha: 0.6),
+              fontSize: 12,
             ),
           ),
         ],
       ),
-      actions: [
-        if (_mode == _ViewMode.replaying || _mode == _ViewMode.liveStreaming)
-          _SpeedButton(speed: _speed, onTap: _cycleSpeed),
-        if (_mode == _ViewMode.replaying)
-          TextButton(
-            onPressed: _skipReplay,
-            child: Text(
-              'Pular',
-              style: GoogleFonts.spaceGrotesk(
-                color: TwColors.primary,
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        if (_mode == _ViewMode.replayDone)
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: HumanizeButton(
-                simId: widget.simId, currentState: humanizeState),
-          ),
-      ],
     );
   }
 
   Widget _buildStreamingBubble() {
     final isMe = _streamingAgentId == _userId;
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints:
-            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
-        margin: const EdgeInsets.symmetric(vertical: 3, horizontal: 12),
-        child: Column(
-          crossAxisAlignment:
-              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            _buildSenderLabel(_labelFor(_streamingAgentId),
-                _colorFor(_streamingAgentId)),
-            _buildBubble(
-              text: _streamingText,
-              isMe: isMe,
-              isStreaming: true,
-            ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 12),
+      child: Row(
+        mainAxisAlignment:
+            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!isMe) ...[
+            _buildAvatarWidget(_streamingAgentId),
+            const SizedBox(width: 8),
           ],
-        ),
+          Flexible(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.72,
+              ),
+              child: Column(
+                crossAxisAlignment:
+                    isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                children: [
+                  _buildInlineSenderLabel(
+                      _labelFor(_streamingAgentId),
+                      _colorFor(_streamingAgentId)),
+                  AnimatedBuilder(
+                    animation: _cursorCtrl,
+                    builder: (_, __) => _buildBubble(
+                      text: _streamingText,
+                      isMe: isMe,
+                      isStreaming: true,
+                      cursorOpacity: _cursorCtrl.value,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (isMe) ...[
+            const SizedBox(width: 8),
+            _buildAvatarWidget(_streamingAgentId),
+          ],
+        ],
       ),
     );
   }
@@ -718,65 +1092,154 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
 
     return GestureDetector(
       onLongPress: () => _showReactionPicker(index),
-      child: Align(
-        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-          constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.78),
-          margin: const EdgeInsets.symmetric(vertical: 3, horizontal: 12),
-          child: Column(
-            crossAxisAlignment:
-                isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-            children: [
-              _buildSenderLabel(msg.senderLabel, msg.senderColor),
-              _buildBubble(text: msg.text, isMe: isMe),
-              if (msg.reaction != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2, left: 4, right: 4),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: TwColors.card,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: TwColors.border),
-                    ),
-                    child: Text(msg.reaction!,
-                        style: const TextStyle(fontSize: 14)),
-                  ),
-                ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 12),
+        child: Row(
+          mainAxisAlignment:
+              isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (!isMe) ...[
+              _buildAvatarWidget(msg.agentId),
+              const SizedBox(width: 8),
             ],
-          ),
+            Flexible(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.72,
+                ),
+                child: Column(
+                  crossAxisAlignment:
+                      isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                  children: [
+                    _buildInlineSenderLabel(msg.senderLabel, msg.senderColor),
+                    if (msg.replyText != null)
+                      Container(
+                        margin: const EdgeInsets.only(
+                            left: 8, right: 8, bottom: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: TwColors.surface,
+                          borderRadius: BorderRadius.circular(TwRadius.md),
+                          border: Border(
+                            left: BorderSide(
+                              color: isMe
+                                  ? TwColors.primary
+                                  : TwColors.secondary,
+                              width: 3,
+                            ),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              msg.replyLabel ?? '',
+                              style: GoogleFonts.spaceGrotesk(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: isMe
+                                    ? TwColors.primary
+                                    : TwColors.secondary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              msg.replyText!,
+                              style: GoogleFonts.spaceGrotesk(
+                                fontSize: 11,
+                                color: TwColors.onSurface,
+                                height: 1.3,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    TweenAnimationBuilder(
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
+                      builder: (ctx, value, child) {
+                        return Opacity(
+                          opacity: value,
+                          child: Transform.translate(
+                            offset: Offset(0, (1 - value) * 12),
+                            child: _buildBubble(
+                              text: msg.text,
+                              isMe: isMe,
+                              interesse: msg.interesse,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    if (msg.reaction != null)
+                      Padding(
+                        padding: const EdgeInsets.only(
+                            top: 2, left: 4, right: 4),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: TwColors.card,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: TwColors.border),
+                          ),
+                          child: Text(msg.reaction!,
+                              style: const TextStyle(fontSize: 14)),
+                        ),
+                      ),
+                    if (msg.isHuman && isMe)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 2, left: 4, right: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.done_all,
+                                size: 12, color: TwColors.muted),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            if (isMe) ...[
+              const SizedBox(width: 8),
+              _buildAvatarWidget(msg.agentId),
+            ],
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildSenderLabel(String label, Color color) {
+  Widget _buildInlineSenderLabel(String label, Color color) {
     return Padding(
-      padding: const EdgeInsets.only(left: 8, right: 8, bottom: 3),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 5),
-          Text(label,
-              style: GoogleFonts.spaceGrotesk(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: TwColors.muted,
-              )),
-        ],
+      padding: const EdgeInsets.only(bottom: 3),
+      child: Text(
+        label,
+        style: GoogleFonts.spaceGrotesk(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: color.withValues(alpha: 0.7),
+        ),
       ),
     );
   }
 
-  Widget _buildBubble(
-      {required String text, required bool isMe, bool isStreaming = false}) {
+  Widget _buildBubble({
+    required String text,
+    required bool isMe,
+    bool isStreaming = false,
+    int? interesse,
+    double? cursorOpacity,
+  }) {
+    final borderColor = isMe ? null : _interestBorder(interesse);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
@@ -788,277 +1251,29 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
           bottomLeft: Radius.circular(isMe ? 16 : 4),
           bottomRight: Radius.circular(isMe ? 4 : 16),
         ),
-        border: isMe
-            ? null
-            : Border.all(color: TwColors.border, width: 0.5),
+        border: borderColor != null
+            ? Border.all(color: borderColor, width: 1.5)
+            : null,
       ),
-      child: Text(
-        text,
+      child: Text.rich(
+        TextSpan(
+          text: text,
+          children: cursorOpacity != null
+              ? [
+                  TextSpan(
+                    text: '|',
+                    style: TextStyle(
+                      color: (isMe ? Colors.white : TwColors.onBg)
+                          .withValues(alpha: cursorOpacity),
+                    ),
+                  ),
+                ]
+              : null,
+        ),
         style: GoogleFonts.spaceGrotesk(
           color: isMe ? Colors.white : TwColors.onBg,
           fontSize: 14,
           height: 1.4,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildResultCard(BuildContext context) {
-    if (_compatibility == null) return const SizedBox.shrink();
-    final pct = (_compatibility! * 100).toInt();
-
-    final phrase = _compatPhrases
-        .where((p) => pct >= p.$1 && pct < p.$2)
-        .map((p) => p.$3)
-        .firstOrNull;
-
-    final ringColor = pct > 70
-        ? TwColors.success
-        : pct > 40
-            ? TwColors.warning
-            : TwColors.error;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [TwColors.card, TwColors.cardAlt],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(TwRadius.xl),
-        border: Border.all(color: TwColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: TwColors.primary.withValues(alpha: 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Gradient header band
-          Container(
-            height: 4,
-            decoration: const BoxDecoration(
-              gradient: TwGradients.accent,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(TwRadius.xl)),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-            child: Column(
-              children: [
-                // Compatibility ring
-                SizedBox(
-                  width: 90,
-                  height: 90,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      SizedBox(
-                        width: 90,
-                        height: 90,
-                        child: CircularProgressIndicator(
-                          value: _compatibility,
-                          strokeWidth: 6,
-                          backgroundColor: TwColors.border,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(ringColor),
-                          strokeCap: StrokeCap.round,
-                        ),
-                      ),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '$pct%',
-                            style: GoogleFonts.spaceGrotesk(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              color: ringColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Compatibilidade',
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 12,
-                    color: TwColors.muted,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                if (phrase != null) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    phrase,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.spaceGrotesk(
-                      fontSize: 13,
-                      color: TwColors.onSurface,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                // Score bars
-                Row(
-                  children: [
-                    _buildScoreBar('Você', _scoreA, _colorMe),
-                    const SizedBox(width: 12),
-                    _buildScoreBar(_labelOther, _scoreB, _colorOther),
-                  ],
-                ),
-                if (_completedTurns != null) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: TwColors.surface,
-                      borderRadius:
-                          BorderRadius.circular(TwRadius.pill),
-                    ),
-                    child: Text(
-                      '$_completedTurns turnos${_earlyStopped == true ? ' · encerrado cedo' : ''}',
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 11,
-                        color: TwColors.muted,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScoreBar(String label, double? score, Color color) {
-    final v = score ?? 0.0;
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(label,
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 11,
-                    color: TwColors.muted,
-                  )),
-              Text(
-                '${(v * 100).toInt()}',
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: v,
-              minHeight: 6,
-              backgroundColor: TwColors.border,
-              valueColor: AlwaysStoppedAnimation<Color>(color),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInputBar() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
-      decoration: const BoxDecoration(
-        color: TwColors.surface,
-        border: Border(top: BorderSide(color: TwColors.border, width: 0.5)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: TwColors.card,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: TwColors.border),
-              ),
-              child: TextField(
-                controller: _inputCtrl,
-                style: GoogleFonts.spaceGrotesk(
-                    color: TwColors.onBg, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'Escreva uma mensagem...',
-                  hintStyle:
-                      GoogleFonts.spaceGrotesk(color: TwColors.muted, fontSize: 14),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 10),
-                ),
-                onSubmitted: (_) => _sendMessage(),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: _sendMessage,
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: const BoxDecoration(
-                gradient: TwGradients.primary,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.send, size: 18, color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SpeedButton extends StatelessWidget {
-  final double speed;
-  final VoidCallback onTap;
-
-  const _SpeedButton({required this.speed, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: TwColors.primary.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(TwRadius.pill),
-          border: Border.all(
-            color: TwColors.primary.withValues(alpha: 0.3),
-          ),
-        ),
-        child: Text(
-          '${speed == speed.toInt() ? speed.toInt() : speed}×',
-          style: GoogleFonts.spaceGrotesk(
-            color: TwColors.primary,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-          ),
         ),
       ),
     );

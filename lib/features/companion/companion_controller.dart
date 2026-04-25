@@ -12,22 +12,26 @@ class CompanionState {
   final List<CompanionMessage> messages;
   final bool isLoading;
   final bool isSending;
+  final String? error;
 
   const CompanionState({
     this.messages = const [],
     this.isLoading = false,
     this.isSending = false,
+    this.error,
   });
 
   CompanionState copyWith({
     List<CompanionMessage>? messages,
     bool? isLoading,
     bool? isSending,
+    String? error,
   }) =>
       CompanionState(
         messages: messages ?? this.messages,
         isLoading: isLoading ?? this.isLoading,
         isSending: isSending ?? this.isSending,
+        error: error,
       );
 }
 
@@ -72,7 +76,10 @@ class CompanionController extends StateNotifier<CompanionState> {
         isSending: false,
       );
     } catch (_) {
-      state = state.copyWith(isSending: false);
+      state = state.copyWith(
+        isSending: false,
+        error: 'Não foi possível enviar a mensagem. Tente novamente.',
+      );
     }
   }
 

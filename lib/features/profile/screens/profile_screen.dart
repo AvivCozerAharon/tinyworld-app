@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:tinyworld_app/core/theme/styles.dart';
 import 'package:tinyworld_app/features/auth/auth_controller.dart';
+import 'package:tinyworld_app/features/chats/chats_controller.dart';
 import 'package:tinyworld_app/features/profile/profile_controller.dart';
 import 'package:tinyworld_app/features/onboarding/widgets/avatar_preview.dart';
 import 'package:tinyworld_app/shared/widgets/app_animations.dart';
@@ -17,33 +18,124 @@ class ProfileScreen extends ConsumerWidget {
     final state = ref.watch(profileControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Perfil')),
+      backgroundColor: TwColors.bg,
       body: state.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: TwColors.primary))
           : state.error != null
               ? Center(child: Text(state.error!))
               : _buildContent(context, ref, state.profile!),
     );
   }
 
-  Widget _buildContent(BuildContext context, WidgetRef ref, ProfileData profile) {
+  Widget _buildContent(
+      BuildContext context, WidgetRef ref, ProfileData profile) {
+    final chatsState = ref.watch(chatsControllerProvider);
+    final totalChats = chatsState.chats.length;
+
     return RefreshIndicator(
       color: TwColors.primary,
+      backgroundColor: TwColors.card,
       onRefresh: () => ref.read(profileControllerProvider.notifier).loadProfile(),
       child: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        padding: EdgeInsets.zero,
         children: [
-          const SizedBox(height: 12),
-          Center(
+          const SizedBox(height: 16),
+          _buildHeader(context, ref, profile, totalChats),
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text('Ferramentas',
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: TwColors.muted,
+                  letterSpacing: 0.5,
+                )),
+          ),
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _SectionCard(
+              title: 'Meu Cerebro',
+              subtitle: 'Veja o que seu agente sabe sobre voce',
+              icon: Icons.auto_awesome_outlined,
+              color: const Color(0xFF6C5CE7),
+              onTap: () => context.push('/profile/brain'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _SectionCard(
+              title: 'Treinar meu agente',
+              subtitle: 'Responda perguntas para melhorar seus matches',
+              icon: Icons.psychology_outlined,
+              color: TwColors.secondary,
+              onTap: () => context.push('/profile/train'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _SectionCard(
+              title: 'Configuracoes',
+              subtitle: 'Editar nome, hobbies e preferencias',
+              icon: Icons.settings_outlined,
+              color: TwColors.onSurface,
+              onTap: () => context.push('/profile/edit'),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _LogoutButton(
+              onTap: () async {
+                try {
+                  await ref
+                      .read(authControllerProvider.notifier)
+                      .signOut();
+                } catch (_) {
+                  await localStorage.clearAll();
+                }
+                if (context.mounted) context.go('/login');
+              },
+            ),
+          ),
+          const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, WidgetRef ref,
+      ProfileData profile, int totalChats) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: TwGradients.card,
+        borderRadius: BorderRadius.circular(TwRadius.xxl),
+        border: Border.all(color: TwColors.border),
+      ),
+      child: Column(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: TwColors.primary, width: 3),
+            ),
             child: profile.avatarUrl.isNotEmpty
-                ? AvatarPreview(avatarUrl: profile.avatarUrl, size: 96)
+                ? AvatarPreview(avatarUrl: profile.avatarUrl, size: 100)
                 : CircleAvatar(
-                    radius: 48,
-                    backgroundColor: TwColors.card,
+                    radius: 50,
+                    backgroundColor: TwColors.surface,
                     child: Text(
-                      profile.name.isNotEmpty ? profile.name[0].toUpperCase() : '?',
+                      profile.name.isNotEmpty
+                          ? profile.name[0].toUpperCase()
+                          : '?',
                       style: GoogleFonts.spaceGrotesk(
-                        fontSize: 32,
+                        fontSize: 36,
                         fontWeight: FontWeight.w700,
                         color: TwColors.primary,
                       ),
@@ -51,70 +143,117 @@ class ProfileScreen extends ConsumerWidget {
                   ),
           ),
           const SizedBox(height: 16),
-          Center(
-            child: Text(
-              profile.name,
-              style: GoogleFonts.spaceGrotesk(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: TwColors.onBg,
-              ),
+          Text(
+            profile.name,
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: TwColors.onBg,
             ),
           ),
           if (profile.hobbies.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Center(
-              child: Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: profile.hobbies
-                    .map((h) => Chip(
-                          label: Text(h,
-                              style: GoogleFonts.spaceGrotesk(
-                                  fontSize: 12, color: TwColors.onBg)),
-                          backgroundColor: TwColors.card,
-                          side: const BorderSide(color: TwColors.border),
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          visualDensity: VisualDensity.compact,
-                        ))
-                    .toList(),
-              ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              alignment: WrapAlignment.center,
+              children: profile.hobbies
+                  .take(5)
+                  .map((h) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: TwColors.surface,
+                          borderRadius: BorderRadius.circular(TwRadius.pill),
+                          border: Border.all(color: TwColors.border),
+                        ),
+                        child: Text(h,
+                            style: GoogleFonts.spaceGrotesk(
+                                fontSize: 12,
+                                color: TwColors.onSurface)),
+                      ))
+                  .toList(),
             ),
+            if (profile.hobbies.length > 5)
+              Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: Text(
+                  '+${profile.hobbies.length - 5}',
+                  style: GoogleFonts.spaceGrotesk(
+                      fontSize: 12, color: TwColors.muted),
+                ),
+              ),
           ],
-          const SizedBox(height: 32),
-          _SectionCard(
-            title: 'Meu Cérebro',
-            subtitle: 'Veja o que seu agente sabe sobre você',
-            icon: Icons.auto_awesome_outlined,
-            color: const Color(0xFF6C5CE7),
-            onTap: () => context.go('/profile/brain'),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _StatItem(
+                icon: Icons.chat_bubble_outline,
+                label: 'Conexoes',
+                value: '$totalChats',
+                color: TwColors.primary,
+              ),
+              Container(
+                width: 1,
+                height: 32,
+                color: TwColors.border,
+              ),
+              _StatItem(
+                icon: Icons.auto_awesome_outlined,
+                label: 'Memorias',
+                value: '--',
+                color: const Color(0xFF6C5CE7),
+              ),
+              Container(
+                width: 1,
+                height: 32,
+                color: TwColors.border,
+              ),
+              _StatItem(
+                icon: Icons.psychology_outlined,
+                label: 'Treino',
+                value: profile.onboardingCompleted ? 'Feito' : 'Pendente',
+                color: TwColors.secondary,
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          _SectionCard(
-            title: 'Treinar meu agente',
-            subtitle: 'Responda perguntas para melhorar seus matches',
-            icon: Icons.psychology_outlined,
-            onTap: () => context.go('/profile/train'),
-          ),
-          const SizedBox(height: 12),
-          _SectionCard(
-            title: 'Configurações',
-            subtitle: 'Editar nome, hobbies e preferências',
-            icon: Icons.settings_outlined,
-            onTap: () => context.go('/profile/edit'),
-          ),
-          const SizedBox(height: 32),
-          _LogoutButton(
-            onTap: () async {
-              try {
-                await ref.read(authControllerProvider.notifier).signOut();
-              } catch (_) {
-                await localStorage.clearAll();
-              }
-              if (context.mounted) context.go('/login');
-            },
-          ),
-          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _StatItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(height: 4),
+          Text(value,
+              style: GoogleFonts.spaceGrotesk(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: TwColors.onBg)),
+          const SizedBox(height: 2),
+          Text(label,
+              style: GoogleFonts.spaceGrotesk(
+                  fontSize: 11, color: TwColors.muted)),
         ],
       ),
     );
@@ -140,15 +279,9 @@ class _SectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return TapScale(
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: TwColors.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: TwColors.border),
-        ),
-        child: InkWell(
+      child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(TwRadius.xl),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -157,9 +290,9 @@ class _SectionCard extends StatelessWidget {
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(TwRadius.md),
                   ),
-                  child: Icon(icon, color: color, size: 24),
+                  child: Icon(icon, color: color, size: 22),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -190,7 +323,6 @@ class _SectionCard extends StatelessWidget {
             ),
           ),
         ),
-      ),
     );
   }
 }
@@ -208,13 +340,14 @@ class _LogoutButton extends StatelessWidget {
       child: OutlinedButton(
         onPressed: onTap,
         style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Color(0xFFFF6B6B)),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          side: const BorderSide(color: TwColors.error),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(TwRadius.lg)),
         ),
         child: Text(
           'Sair da conta',
           style: GoogleFonts.spaceGrotesk(
-            color: const Color(0xFFFF6B6B),
+            color: TwColors.error,
             fontWeight: FontWeight.w600,
             fontSize: 15,
           ),

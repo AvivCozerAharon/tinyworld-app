@@ -54,8 +54,16 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(companionControllerProvider);
 
-    ref.listen(companionControllerProvider, (_, next) {
+    ref.listen(companionControllerProvider, (prev, next) {
       if (!next.isSending) _scrollToBottom();
+      if (next.error != null && next.error != prev?.error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.error!),
+            backgroundColor: const Color(0xFFEF5350), // TwColors.error
+          ),
+        );
+      }
     });
 
     return Scaffold(
@@ -240,9 +248,9 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen> {
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: TwColors.card,
-              borderRadius: const BorderRadius.only(
+              borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(TwRadius.lg),
                 topRight: Radius.circular(TwRadius.lg),
                 bottomLeft: Radius.circular(4),

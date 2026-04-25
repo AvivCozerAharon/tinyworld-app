@@ -96,8 +96,11 @@ MapZone _zoneFor(String userId) {
 
 class MapController extends StateNotifier<MapState> {
   MapWsService? _wsService;
+  String? _lastError;
 
   MapController() : super(const MapState());
+
+  String? get lastError => _lastError;
 
   void _handleEvent(Map<String, dynamic> event) {
     final type = event['event'] as String?;
@@ -164,22 +167,37 @@ class MapController extends StateNotifier<MapState> {
   }
 
   Future<void> startSearch() async {
+    _lastError = null;
     final userId = await localStorage.getUserId();
     if (userId == null) return;
-    final resp = await apiClient.post('/search/start', data: {'user_id': userId});
-    final sessionId = resp.data['session_id'] as String;
-    state = state.copyWith(sessionId: sessionId, isSearching: true, searchDone: false);
+    try {
+      final resp = await apiClient.post('/search/start', data: {'user_id': userId});
+      final sessionId = resp.data['session_id'] as String;
+      state = state.copyWith(sessionId: sessionId, isSearching: true, searchDone: false);
 
-    final wsBase = apiClient.baseUrl.replaceFirst('http', 'ws');
-    final token = await localStorage.getIdToken() ?? '';
-    _wsService = MapWsService(sessionId: sessionId, token: token, wsBaseUrl: wsBase);
-    _wsService!.events.listen(
-      _handleEvent,
-      onDone: () {
-        if (mounted) state = state.copyWith(isSearching: false, searchDone: true);
-      },
-    );
-    _wsService!.connect();
+      final wsBase = apiClient.baseUrl.replaceFirst('http', 'ws');
+      _wsService = MapWsService(
+        sessionId: sessionId,
+        tokenProvider: () async => await localStorage.getIdToken() ?? '',
+        wsBaseUrl: wsBase,
+      );
+      _wsService!.events.listen(
+        _handleEvent,
+        onDone: () {
+          if (mounted) state = state.copyWith(isSearching: false, searchDone: true);
+        },
+        onError: (e) {
+          if (mounted) {
+            _lastError = e.toString();
+            state = state.copyWith(isSearching: false);
+          }
+        },
+      );
+      await _wsService!.connect();
+    } catch (e) {
+      _lastError = e.toString();
+      state = state.copyWith(isSearching: false, searchDone: true);
+    }
   }
 
   Future<void> stopSearch() async {

@@ -18,6 +18,8 @@ class ChatsListScreen extends ConsumerStatefulWidget {
 
 class _ChatsListScreenState extends ConsumerState<ChatsListScreen> {
   _ChatFilter _filter = _ChatFilter.todos;
+  String _search = '';
+  final _searchCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -27,10 +29,16 @@ class _ChatsListScreenState extends ConsumerState<ChatsListScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _showSimulateDialog() async {
     List<Map<String, dynamic>> users = [];
     try {
-      final resp = await apiClient.get('/debug/users');
+      final resp = await apiClient.get('/profile/users');
       users = (resp.data as List).cast<Map<String, dynamic>>();
     } catch (_) {}
 
@@ -47,13 +55,20 @@ class _ChatsListScreenState extends ConsumerState<ChatsListScreen> {
   }
 
   List<ChatItem> _filtered(List<ChatItem> chats) {
-    return switch (_filter) {
+    var items = switch (_filter) {
       _ChatFilter.simulado =>
         chats.where((c) => c.humanizeState == 'simulated').toList(),
       _ChatFilter.humano =>
         chats.where((c) => c.humanizeState == 'humanized').toList(),
       _ => chats,
     };
+    if (_search.isNotEmpty) {
+      final q = _search.toLowerCase();
+      items = items
+          .where((c) => c.otherName.toLowerCase().contains(q))
+          .toList();
+    }
+    return items;
   }
 
   @override
@@ -71,10 +86,43 @@ class _ChatsListScreenState extends ConsumerState<ChatsListScreen> {
           ),
         ),
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(44),
-          child: _FilterTabs(
-            current: _filter,
-            onChanged: (f) => setState(() => _filter = f),
+          preferredSize: const Size.fromHeight(88),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: Container(
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: TwColors.card,
+                    borderRadius: BorderRadius.circular(TwRadius.pill),
+                    border: Border.all(color: TwColors.border),
+                  ),
+                  child: TextField(
+                    controller: _searchCtrl,
+                    onChanged: (v) => setState(() => _search = v),
+                    style: GoogleFonts.spaceGrotesk(
+                      color: TwColors.onBg, fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: 'Buscar por nome...',
+                      hintStyle: GoogleFonts.spaceGrotesk(
+                          color: TwColors.muted, fontSize: 13),
+                      prefixIcon: const Icon(Icons.search,
+                          size: 18, color: TwColors.muted),
+                      border: InputBorder.none,
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+              ),
+              _FilterTabs(
+                current: _filter,
+                onChanged: (f) => setState(() => _filter = f),
+              ),
+            ],
           ),
         ),
       ),
@@ -105,116 +153,214 @@ class _ChatsListScreenState extends ConsumerState<ChatsListScreen> {
         ),
       ),
       body: state.isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: TwColors.primary))
-          : visible.isEmpty
+          ? _ChatListSkeleton()
+          : state.error != null && state.chats.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: TwColors.card,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: TwColors.border),
-                        ),
-                        child: const Icon(Icons.chat_bubble_outline,
-                            size: 36, color: TwColors.muted),
-                      ),
-                      const SizedBox(height: 20),
+                      const Icon(Icons.error_outline,
+                          size: 48, color: TwColors.error),
+                      const SizedBox(height: 16),
                       Text(
-                        'Nenhuma simulação ainda',
+                        'Erro ao carregar',
                         style: GoogleFonts.spaceGrotesk(
                           color: TwColors.onSurface,
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Use o mapa para encontrar conexões!',
-                        style: GoogleFonts.spaceGrotesk(
-                          color: TwColors.muted,
-                          fontSize: 13,
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 40),
+                        child: Text(
+                          state.error!,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.spaceGrotesk(
+                            color: TwColors.muted, fontSize: 13),
                         ),
+                      ),
+                      const SizedBox(height: 20),
+                      FilledButton.icon(
+                        onPressed: () => ref
+                            .read(chatsControllerProvider.notifier)
+                            .loadChats(),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Tentar novamente'),
                       ),
                     ],
                   ),
                 )
-              : RefreshIndicator(
-                  color: TwColors.primary,
-                  backgroundColor: TwColors.card,
-                  onRefresh: () =>
-                      ref.read(chatsControllerProvider.notifier).loadChats(),
-                  child: StaggeredListView(
-                    itemCount: visible.length,
-                    itemBuilder: (_, i) {
-                      final chat = visible[i];
-                      return Dismissible(
-                        key: Key(chat.simId),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 24),
-                          margin: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: TwColors.error.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(TwRadius.xl),
-                            border: Border.all(
-                                color: TwColors.error.withValues(alpha: 0.3)),
-                          ),
-                          child: const Icon(Icons.delete_outline,
-                              color: TwColors.error),
-                        ),
-                        confirmDismiss: (_) async {
-                          return await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              backgroundColor: TwColors.surface,
-                              title: Text('Remover conversa?',
-                                  style: GoogleFonts.spaceGrotesk(
-                                      color: TwColors.onBg,
-                                      fontWeight: FontWeight.w700)),
-                              content: Text(
-                                  'Isso vai remover da sua lista. A simulação continua salva.',
-                                  style: GoogleFonts.spaceGrotesk(
-                                      color: TwColors.muted)),
-                              actions: [
-                                TextButton(
-                                  onPressed: () =>
-                                      Navigator.of(ctx).pop(false),
-                                  child: Text('Cancelar',
-                                      style: GoogleFonts.spaceGrotesk(
-                                          color: TwColors.muted)),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.of(ctx).pop(true),
-                                  child: Text('Remover',
-                                      style: GoogleFonts.spaceGrotesk(
-                                          color: TwColors.error,
-                                          fontWeight: FontWeight.w700)),
-                                ),
-                              ],
+              : visible.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              color: TwColors.card,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: TwColors.border),
                             ),
-                          ) ??
-                              false;
+                            child: const Icon(Icons.chat_bubble_outline,
+                                size: 36, color: TwColors.muted),
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            _search.isNotEmpty
+                                ? 'Nenhum resultado'
+                                : 'Nenhuma conexão ainda',
+                            style: GoogleFonts.spaceGrotesk(
+                              color: TwColors.onSurface,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _search.isNotEmpty
+                                ? 'Tente outro termo de busca.'
+                                : 'Use o mapa para encontrar conexões!',
+                            style: GoogleFonts.spaceGrotesk(
+                              color: TwColors.muted,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      color: TwColors.primary,
+                      backgroundColor: TwColors.card,
+                      onRefresh: () =>
+                          ref.read(chatsControllerProvider.notifier).loadChats(),
+                      child: StaggeredListView(
+                        itemCount: visible.length,
+                        itemBuilder: (_, i) {
+                          final chat = visible[i];
+                          return Dismissible(
+                            key: Key(chat.simId),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 24),
+                              margin: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: TwColors.error.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(TwRadius.xl),
+                                border: Border.all(
+                                    color: TwColors.error.withValues(alpha: 0.3)),
+                              ),
+                              child: const Icon(Icons.delete_outline,
+                                  color: TwColors.error),
+                            ),
+                            confirmDismiss: (_) async {
+                              return await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  backgroundColor: TwColors.surface,
+                                  title: Text('Remover conversa?',
+                                      style: GoogleFonts.spaceGrotesk(
+                                          color: TwColors.onBg,
+                                          fontWeight: FontWeight.w700)),
+                                  content: Text(
+                                    'Isso vai remover da sua lista. A simulação continua salva.',
+                                    style: GoogleFonts.spaceGrotesk(
+                                        color: TwColors.onSurface)),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.of(ctx).pop(false),
+                                      child: Text('Cancelar',
+                                          style: GoogleFonts.spaceGrotesk(
+                                              color: TwColors.muted)),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.of(ctx).pop(true),
+                                      child: Text('Remover',
+                                          style: GoogleFonts.spaceGrotesk(
+                                              color: TwColors.error,
+                                              fontWeight: FontWeight.w700)),
+                                    ),
+                                  ],
+                                ),
+                              ) ??
+                                  false;
+                            },
+                            onDismissed: (_) {
+                              ref
+                                  .read(chatsControllerProvider.notifier)
+                                  .deleteChat(chat.simId);
+                            },
+                            child: ChatListItem(
+                              chat: chat,
+                              onTap: () => context.push('/chats/${chat.simId}'),
+                            ),
+                          );
                         },
-                        onDismissed: (_) {
-                          ref
-                              .read(chatsControllerProvider.notifier)
-                              .deleteChat(chat.simId);
-                        },
-                        child: ChatListItem(
-                          chat: chat,
-                          onTap: () => context.go('/chats/${chat.simId}'),
-                        ),
-                      );
-                    },
-                  ),
+                      ),
+                    ),
+    );
+  }
+}
+
+class _ChatListSkeleton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: 6,
+      itemBuilder: (_, __) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: TwColors.card,
+            borderRadius: BorderRadius.circular(TwRadius.xl),
+            border: Border.all(color: TwColors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: TwColors.surface,
+                  shape: BoxShape.circle,
                 ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 100,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: TwColors.surface,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: 180,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: TwColors.surface,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

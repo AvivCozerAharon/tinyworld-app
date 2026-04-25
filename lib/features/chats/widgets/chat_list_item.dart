@@ -17,17 +17,38 @@ class ChatListItem extends StatelessWidget {
     return TwColors.error;
   }
 
+  String _timeAgo(String ts) {
+    if (ts.isEmpty) return '';
+    try {
+      final dt = DateTime.parse(ts);
+      final now = DateTime.now();
+      final diff = now.difference(dt);
+      if (diff.inDays > 30) return '${diff.inDays ~/ 30}m';
+      if (diff.inDays > 0) return '${diff.inDays}d';
+      if (diff.inHours > 0) return '${diff.inHours}h';
+      if (diff.inMinutes > 0) return '${diff.inMinutes}min';
+      return 'agora';
+    } catch (_) {
+      return '';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final compat = chat.compatibility;
-    final pct = (compat * 100).toInt();
     final ring = _ringColor(compat);
+    final timeAgo = _timeAgo(chat.ts);
+    final preview = chat.lastMessage;
+    final isHumanized = chat.humanizeState == 'humanized';
+    final displayName = isHumanized && chat.otherName.isNotEmpty
+        ? chat.otherName
+        : '???';
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: TwColors.card,
           borderRadius: BorderRadius.circular(TwRadius.xl),
@@ -35,7 +56,6 @@ class ChatListItem extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Avatar with compatibility ring
             SizedBox(
               width: 52,
               height: 52,
@@ -72,46 +92,72 @@ class ChatListItem extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 14),
-            // Info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    chat.humanizeState == 'humanized' && chat.otherName.isNotEmpty
-                        ? chat.otherName
-                        : '???',
-                    style: GoogleFonts.spaceGrotesk(
-                      color: TwColors.onBg,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
                   Row(
                     children: [
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: ring,
-                          shape: BoxShape.circle,
+                      Flexible(
+                        child: Text(
+                          displayName,
+                          style: GoogleFonts.spaceGrotesk(
+                            color: TwColors.onBg,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(width: 5),
-                      Text(
-                        '$pct% compatível',
-                        style: GoogleFonts.spaceGrotesk(
-                          color: TwColors.muted,
-                          fontSize: 12,
+                      if (timeAgo.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          timeAgo,
+                          style: GoogleFonts.spaceGrotesk(
+                            color: TwColors.muted,
+                            fontSize: 11,
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
+                  const SizedBox(height: 4),
+                  if (preview.isNotEmpty)
+                    Text(
+                      preview,
+                      style: GoogleFonts.spaceGrotesk(
+                        color: TwColors.onSurface,
+                        fontSize: 13,
+                        height: 1.3,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    )
+                  else
+                    Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: ring,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          '${(compat * 100).toInt()}% compatível',
+                          style: GoogleFonts.spaceGrotesk(
+                            color: TwColors.muted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),
-            // State chip
+            const SizedBox(width: 8),
             _StateChip(state: chat.humanizeState),
           ],
         ),
@@ -129,6 +175,8 @@ class _StateChip extends StatelessWidget {
     final (label, color) = switch (state) {
       'humanized' => ('Humano', TwColors.success),
       'humanize_pending' => ('Aguardando', TwColors.warning),
+      'humanize_pending_sent' => ('Aguardando', TwColors.warning),
+      'humanize_pending_received' => ('Conectar', TwColors.primary),
       _ => ('Simulado', TwColors.muted),
     };
     return Container(
