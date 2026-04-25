@@ -30,6 +30,7 @@ dependencies:
   speech_to_text: ^6.6.0
   google_fonts: ^6.1.0
   confetti: ^0.7.0
+  flame: ^1.18.0
 
 dev_dependencies:
   flutter_test:
@@ -44,3 +45,8 @@ flutter:
   assets:
     - assets/images/
     - assets/animations/
+    - assets/city/Buildings/
+    - assets/city/Props/
+    - assets/city/Roads and Grounds/
+    - assets/city/Vehicles/
+    - assets/city/Images/
