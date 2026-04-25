@@ -1,7 +1,8 @@
 import 'dart:math';
+import 'dart:ui' show Canvas, RRect, Radius;
 import 'package:flame/components.dart';
 import 'package:flame/palette.dart';
-import 'package:flutter/material.dart' show Color, Colors, TextStyle, FontWeight;
+import 'package:flutter/material.dart' show Color, Colors, TextStyle, FontWeight, Paint;
 import 'package:tinyworld_app/features/map/map_controller.dart';
 
 Color _colorFromId(String id) {
@@ -42,10 +43,14 @@ class NpcComponent extends PositionComponent {
   void updateFrom(SimulationEntry sim) {
     _sim = sim;
     _typingTimer = 0;
-    _rebuild();
+    if (isMounted) _rebuild();
   }
 
   void _rebuild() {
+    _avatar = null;
+    _bubble = null;
+    _dots = null;
+    _pill = null;
     removeAll(children.toList());
 
     final color = _colorFromId(_sim.otherUserId);
@@ -120,10 +125,7 @@ class _ChatBubble extends PositionComponent {
   Future<void> onLoad() async {
     await super.onLoad();
     final truncated = text.length > 40 ? '${text.substring(0, 37)}...' : text;
-    add(RectangleComponent(
-      size: Vector2(120, 36),
-      paint: PaletteEntry(const Color(0xFFFFFFFF)).paint(),
-    ));
+    add(_RoundedBubble(size: Vector2(120, 36)));
     add(TextComponent(
       text: truncated,
       position: Vector2(6, 8),
@@ -134,6 +136,19 @@ class _ChatBubble extends PositionComponent {
         ),
       ),
     ));
+  }
+}
+
+class _RoundedBubble extends PositionComponent {
+  _RoundedBubble({required Vector2 size}) : super(size: size);
+
+  @override
+  void render(Canvas canvas) {
+    final paint = Paint()..color = const Color(0xFFFFFFFF);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(size.toRect(), const Radius.circular(8)),
+      paint,
+    );
   }
 }
 
