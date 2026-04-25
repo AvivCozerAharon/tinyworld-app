@@ -703,6 +703,33 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
     super.dispose();
   }
 
+  Widget _buildProgressBar() {
+    if (_mode == _ViewMode.replaying) {
+      final value = _totalTurns > 0
+          ? (_messages.length / _totalTurns).clamp(0.0, 1.0)
+          : 0.0;
+      return SizedBox(
+        height: 2,
+        child: LinearProgressIndicator(
+          value: value,
+          minHeight: 2,
+          backgroundColor: TwColors.border,
+          valueColor: const AlwaysStoppedAnimation<Color>(TwColors.primary),
+        ),
+      );
+    } else if (_mode == _ViewMode.liveStreaming) {
+      return SizedBox(
+        height: 2,
+        child: LinearProgressIndicator(
+          minHeight: 2,
+          backgroundColor: TwColors.border,
+          valueColor: const AlwaysStoppedAnimation<Color>(TwColors.primary),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
   @override
   Widget build(BuildContext context) {
     final chatsState = ref.watch(chatsControllerProvider);
@@ -722,6 +749,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
         child: Column(
           children: [
             _buildAppBar(context, humanizeState),
+            _buildProgressBar(),
             Expanded(
               child: _mode == _ViewMode.error
                   ? _buildErrorState()
