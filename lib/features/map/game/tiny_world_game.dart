@@ -12,11 +12,10 @@ class TinyWorldGame extends FlameGame {
 
   final Map<String, NpcComponent> _npcs = {};
   final Map<String, (int col, int row)> _npcSlots = {};
-  int _nextSlotIndex = 0;
 
   double _tileHalfWidth = 32;
   double _tileHalfHeight = 16;
-  late Vector2 _origin;
+  Vector2 _origin = Vector2.zero();
 
   @override
   Future<void> onLoad() async {
@@ -46,6 +45,14 @@ class TinyWorldGame extends FlameGame {
     add(_mapComponent!);
   }
 
+  (int col, int row)? _nextFreeSlot(MapLayout layout) {
+    final usedSlots = _npcSlots.values.toSet();
+    for (final slot in layout.npcSlots) {
+      if (!usedSlots.contains(slot)) return slot;
+    }
+    return null;
+  }
+
   void updateState(MapState state) {
     final map = _mapComponent;
     final layout = _layout;
@@ -64,8 +71,9 @@ class TinyWorldGame extends FlameGame {
 
     for (final sim in state.activeSimulations) {
       if (!_npcSlots.containsKey(sim.jobId)) {
-        if (_nextSlotIndex >= layout.npcSlots.length) continue;
-        _npcSlots[sim.jobId] = layout.npcSlots[_nextSlotIndex++];
+        final slot = _nextFreeSlot(layout);
+        if (slot == null) continue;
+        _npcSlots[sim.jobId] = slot;
       }
 
       final slot = _npcSlots[sim.jobId]!;
