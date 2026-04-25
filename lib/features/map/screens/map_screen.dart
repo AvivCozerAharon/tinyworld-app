@@ -1,8 +1,9 @@
+import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tinyworld_app/features/map/game/tiny_world_game.dart';
 import 'package:tinyworld_app/features/map/map_controller.dart';
-import 'package:tinyworld_app/features/map/widgets/map_canvas.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
@@ -10,50 +11,32 @@ class MapScreen extends ConsumerStatefulWidget {
   ConsumerState<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends ConsumerState<MapScreen>
-    with TickerProviderStateMixin {
-  late AnimationController _walkCtrl;
-  late Animation<double> _walkAnim;
+class _MapScreenState extends ConsumerState<MapScreen> {
+  late final TinyWorldGame _game;
 
   @override
   void initState() {
     super.initState();
-    _walkCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 600))
-      ..repeat();
-    _walkAnim = CurvedAnimation(parent: _walkCtrl, curve: Curves.easeInOut);
+    _game = TinyWorldGame();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(mapControllerProvider.notifier).startSearch();
     });
   }
 
   @override
-  void dispose() {
-    _walkCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final state = ref.watch(mapControllerProvider);
+
+    ref.listen(mapControllerProvider, (_, next) => _game.updateState(next));
+
     final active = state.activeSimulations;
-    final completed =
-        active.where((s) => s.status == SimulationStatus.completed).toList();
-    final chatting =
-        active.where((s) => s.status == SimulationStatus.chatting).toList();
+    final completed = active.where((s) => s.status == SimulationStatus.completed).toList();
+    final chatting = active.where((s) => s.status == SimulationStatus.chatting).toList();
 
     return Scaffold(
       body: Stack(
         children: [
-          MapCanvas(
-            simulations: active,
-            walkAnimation: _walkAnim,
-            onSimTap: (sim) {
-              if (sim.status == SimulationStatus.completed) {
-                context.go('/chats/${sim.jobId}');
-              }
-            },
-          ),
+          GameWidget(game: _game),
           Positioned(
             top: 48,
             right: 16,
@@ -84,8 +67,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               right: 0,
               child: Center(
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   decoration: BoxDecoration(
                     color: const Color(0xFF1B76F2),
                     borderRadius: BorderRadius.circular(20),
@@ -149,17 +131,26 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       Text(
                         'Nenhuma conexão encontrada',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade700,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Tente novamente mais tarde. Novas pessoas podem aparecer em breve!',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 13, color: Colors.grey.shade500, height: 1.4),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade500,
+                          height: 1.4,
+                        ),
                       ),
                       const SizedBox(height: 20),
                       FilledButton.icon(
-                        onPressed: () => ref.read(mapControllerProvider.notifier).startSearch(),
+                        onPressed: () =>
+                            ref.read(mapControllerProvider.notifier).startSearch(),
                         icon: const Icon(Icons.refresh),
                         label: const Text('Buscar novamente'),
                       ),
@@ -186,12 +177,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     return GestureDetector(
                       onTap: () => context.go('/chats/${sim.jobId}'),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
-                          color: compat > 0.6
-                              ? const Color(0xFFEF5350)
-                              : Colors.white,
+                          color: compat > 0.6 ? const Color(0xFFEF5350) : Colors.white,
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
@@ -207,9 +195,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                             Icon(
                               Icons.chat_bubble,
                               size: 18,
-                              color: compat > 0.6
-                                  ? Colors.white
-                                  : const Color(0xFF757575),
+                              color: compat > 0.6 ? Colors.white : const Color(0xFF757575),
                             ),
                             const SizedBox(width: 8),
                             Text(
@@ -217,9 +203,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                               style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 16,
-                                color: compat > 0.6
-                                    ? Colors.white
-                                    : const Color(0xFF757575),
+                                color: compat > 0.6 ? Colors.white : const Color(0xFF757575),
                               ),
                             ),
                           ],
