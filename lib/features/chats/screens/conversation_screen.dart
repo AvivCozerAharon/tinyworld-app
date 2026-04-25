@@ -781,6 +781,18 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
                               colorOther: _colorOther,
                               completedTurns: _completedTurns,
                               earlyStopped: _earlyStopped,
+                              onStartRealChat: humanizeState == 'simulated'
+                                  ? () async {
+                                      final ok = await ref
+                                          .read(chatsControllerProvider.notifier)
+                                          .requestHumanize(widget.simId);
+                                      if (ok && mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Solicitação enviada!')),
+                                        );
+                                      }
+                                    }
+                                  : null,
                             );
                           }
                           return const SizedBox.shrink();
