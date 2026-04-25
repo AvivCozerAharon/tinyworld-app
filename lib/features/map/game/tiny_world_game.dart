@@ -1,3 +1,4 @@
+import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flame_tiled/flame_tiled.dart';
@@ -31,6 +32,7 @@ class TinyWorldGame extends FlameGame {
       'sample-map.tmx',
       Vector2.all(_tileSize),
       prefix: 'assets/city/Tiled/',
+      images: Images(prefix: 'assets/city/Tiled/'),
     );
     world.add(tiled);
     camera.viewfinder.zoom = _zoom;
