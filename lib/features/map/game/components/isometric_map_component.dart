@@ -24,9 +24,9 @@ class IsometricMapComponent extends PositionComponent {
   });
 
   static String _assetForTile(TileType type) => switch (type) {
-    TileType.grass   => 'city/Roads and Grounds/tile_ground_grass.png',
-    TileType.asphalt => 'city/Roads and Grounds/tile_ground_asphalt_normal.png',
-    TileType.water   => 'city/Roads and Grounds/tile_ground_water.png',
+    TileType.grass   => 'city/grounds/tile_ground_grass.png',
+    TileType.asphalt => 'city/grounds/tile_ground_asphalt_normal.png',
+    TileType.water   => 'city/grounds/tile_ground_water.png',
   };
 
   @override

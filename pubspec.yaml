@@ -47,6 +47,6 @@ flutter:
     - assets/animations/
     - assets/city/Buildings/
     - assets/city/Props/
-    - assets/city/Roads and Grounds/
+    - assets/city/grounds/
     - assets/city/Vehicles/
     - assets/city/Images/
