@@ -20,7 +20,7 @@ void main() {
       }
     });
 
-    test('generates at least 4 and at most 10 buildings', () {
+    test('generates at least 8 and at most 10 buildings', () {
       final layout = generator.generate(42);
       expect(layout.buildings.length, inInclusiveRange(8, 10));
     });
