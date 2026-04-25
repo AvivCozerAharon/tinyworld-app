@@ -108,12 +108,7 @@ class _TrainAgentScreenState extends ConsumerState<TrainAgentScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(trainControllerProvider);
 
-    ref.listen<TrainState>(trainControllerProvider, (prev, next) {
-      if (next.currentQuestion != null &&
-          prev?.currentQuestion?.questionId != next.currentQuestion?.questionId) {
-        _maybeShowQuestion(next.currentQuestion!);
-      }
-    });
+
 
     return Scaffold(
       backgroundColor: TwColors.bg,

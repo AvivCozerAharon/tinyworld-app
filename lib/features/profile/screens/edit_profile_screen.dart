@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:tinyworld_app/core/api/rest_client.dart';
+import 'package:tinyworld_app/core/theme/styles.dart';
 import 'package:tinyworld_app/features/profile/profile_controller.dart';
 
 const _suggestedHobbies = [
-  'Fotografia', 'Games', 'Música', 'Cozinhar', 'Viajar', 'Esportes',
-  'Leitura', 'Cinema', 'Dança', 'Desenho', 'Tecnologia', 'Natureza',
-  'Yoga', 'Café', 'Animes', 'Podcasts', 'Arte', 'Escrita',
-  'Surf', 'Corrida', 'Pet', 'Astrologia', 'Moda', 'Séries',
+  'Fotografia', 'Games', 'Musica', 'Cozinhar', 'Viajar', 'Esportes',
+  'Leitura', 'Cinema', 'Danca', 'Desenho', 'Tecnologia', 'Natureza',
+  'Yoga', 'Cafe', 'Animes', 'Podcasts', 'Arte', 'Escrita',
+  'Surf', 'Corrida', 'Pet', 'Astrologia', 'Moda', 'Series',
 ];
 
 class EditProfileScreen extends ConsumerStatefulWidget {
@@ -88,16 +90,35 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: TwColors.bg,
       appBar: AppBar(
-        title: const Text('Editar Perfil'),
+        backgroundColor: TwColors.bg,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: TwColors.onBg),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text('Configuracoes',
+            style: GoogleFonts.spaceGrotesk(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: TwColors.onBg)),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: TextButton(
               onPressed: _isSaving ? null : _save,
               child: _isSaving
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Salvar', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: TwColors.primary))
+                  : Text('Salvar',
+                      style: GoogleFonts.spaceGrotesk(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        color: TwColors.primary,
+                      )),
             ),
           ),
         ],
@@ -106,34 +127,47 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         children: [
           const SizedBox(height: 8),
-          const Text(
-            'Nome',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
-          ),
+          Text('Nome',
+              style: GoogleFonts.spaceGrotesk(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: TwColors.muted)),
           const SizedBox(height: 8),
           TextField(
             controller: _nameCtrl,
-            style: const TextStyle(fontSize: 16, color: Color(0xFF1A1A2E)),
+            style: GoogleFonts.spaceGrotesk(
+                fontSize: 16, color: TwColors.onBg),
             decoration: InputDecoration(
               hintText: 'Seu nome',
               filled: true,
-              fillColor: const Color(0xFFF5F7FA),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              fillColor: TwColors.card,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(TwRadius.md),
+                  borderSide: BorderSide.none),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(TwRadius.md),
+                  borderSide: const BorderSide(
+                      color: TwColors.border, width: 1)),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(TwRadius.md),
+                  borderSide: const BorderSide(
+                      color: TwColors.primary, width: 1.5)),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
           ),
           const SizedBox(height: 28),
           Row(
             children: [
-              const Text(
-                'Hobbies',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
-              ),
+              Text('Hobbies',
+                  style: GoogleFonts.spaceGrotesk(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: TwColors.muted)),
               const Spacer(),
-              Text(
-                '${_selectedHobbies.length}/10',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-              ),
+              Text('${_selectedHobbies.length}/10',
+                  style: GoogleFonts.spaceGrotesk(
+                      fontSize: 12, color: TwColors.muted)),
             ],
           ),
           const SizedBox(height: 12),
@@ -141,21 +175,37 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: _selectedHobbies.map((h) => _buildChip(h, selected: true)).toList(),
+              children: _selectedHobbies
+                  .map((h) => _buildChip(h, selected: true))
+                  .toList(),
             ),
           const SizedBox(height: 16),
           TextField(
             controller: _newHobbyCtrl,
-            style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A2E)),
+            style: GoogleFonts.spaceGrotesk(
+                fontSize: 14, color: TwColors.onBg),
             decoration: InputDecoration(
               hintText: 'Adicionar hobby...',
-              hintStyle: const TextStyle(color: Color(0xFFC4C9D0)),
+              hintStyle: GoogleFonts.spaceGrotesk(
+                  color: TwColors.muted, fontSize: 14),
               filled: true,
-              fillColor: const Color(0xFFF5F7FA),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              fillColor: TwColors.card,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(TwRadius.md),
+                  borderSide: BorderSide.none),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(TwRadius.md),
+                  borderSide: const BorderSide(
+                      color: TwColors.border, width: 1)),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(TwRadius.md),
+                  borderSide: const BorderSide(
+                      color: TwColors.primary, width: 1.5)),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               suffixIcon: IconButton(
-                icon: const Icon(Icons.add_circle_outline, color: Color(0xFF1B76F2)),
+                icon: const Icon(Icons.add_circle_outline,
+                    color: TwColors.primary),
                 onPressed: () => _addHobby(_newHobbyCtrl.text),
               ),
             ),
@@ -163,15 +213,19 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           ),
           if (_suggested.isNotEmpty) ...[
             const SizedBox(height: 20),
-            const Text(
-              'Sugestões',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
-            ),
+            Text('Sugestoes',
+                style: GoogleFonts.spaceGrotesk(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: TwColors.muted)),
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: _suggested.take(12).map((h) => _buildChip(h, selected: false)).toList(),
+              children: _suggested
+                  .take(12)
+                  .map((h) => _buildChip(h, selected: false))
+                  .toList(),
             ),
           ],
           const SizedBox(height: 32),
@@ -187,24 +241,29 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF1B76F2) : const Color(0xFFF5F7FA),
-          borderRadius: BorderRadius.circular(20),
-          border: selected ? null : Border.all(color: const Color(0xFFE0E0E0)),
+          color: selected
+              ? TwColors.primary.withValues(alpha: 0.15)
+              : TwColors.card,
+          borderRadius: BorderRadius.circular(TwRadius.pill),
+          border: selected
+              ? Border.all(
+                  color: TwColors.primary.withValues(alpha: 0.4), width: 1.5)
+              : Border.all(color: TwColors.border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               label,
-              style: TextStyle(
+              style: GoogleFonts.spaceGrotesk(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: selected ? Colors.white : const Color(0xFF1A1A2E),
+                color: selected ? TwColors.primary : TwColors.onSurface,
               ),
             ),
             if (selected) ...[
               const SizedBox(width: 6),
-              const Icon(Icons.close, size: 14, color: Colors.white),
+              const Icon(Icons.close, size: 14, color: TwColors.primary),
             ],
           ],
         ),

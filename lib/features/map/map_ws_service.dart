@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+
+typedef TokenProvider = Future<String> Function();
 
 class MapWsService {
   final String sessionId;
-  final String token;
+  final TokenProvider tokenProvider;
   final String wsBaseUrl;
 
   WebSocketChannel? _channel;
@@ -17,16 +20,20 @@ class MapWsService {
 
   MapWsService({
     required this.sessionId,
-    required this.token,
+    required this.tokenProvider,
     required this.wsBaseUrl,
   });
 
   Stream<Map<String, dynamic>> get events => _controller.stream;
 
-  void connect() {
+  Future<void> connect() async {
     if (_disposed) return;
-    final uri = Uri.parse('$wsBaseUrl/ws/stream/$sessionId?token=$token');
-    _channel = WebSocketChannel.connect(uri);
+    final token = await tokenProvider();
+    final uri = Uri.parse('$wsBaseUrl/ws/stream/$sessionId');
+    _channel = IOWebSocketChannel.connect(
+      uri,
+      headers: {'Authorization': 'Bearer $token'},
+    );
     _channel!.stream.cast<String>().listen(
       (raw) {
         final event = jsonDecode(raw) as Map<String, dynamic>;
@@ -49,7 +56,13 @@ class MapWsService {
     }
     final delay = _baseDelay * (1 << _reconnectAttempts);
     _reconnectAttempts++;
-    _reconnectTimer = Timer(delay, connect);
+    _reconnectTimer = Timer(delay, () async {
+      try {
+        await connect();
+      } catch (_) {
+        _onDisconnect();
+      }
+    });
   }
 
   void dispose() {

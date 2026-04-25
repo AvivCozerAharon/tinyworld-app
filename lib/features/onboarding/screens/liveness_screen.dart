@@ -133,6 +133,8 @@ class _LivenessScreenState extends ConsumerState<LivenessScreen> {
       ref
           .read(onboardingControllerProvider.notifier)
           .setAppearance(data['appearance'] as Map<String, dynamic>);
+      await _cam?.dispose();
+      _cam = null;
       if (mounted) {
         context.push('/onboarding/avatar', extra: {
           'variations': data['variations'],

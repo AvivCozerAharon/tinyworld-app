@@ -9,6 +9,9 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:tinyworld_app/core/api/rest_client.dart';
 import 'package:tinyworld_app/core/storage/local_storage.dart';
+import 'package:tinyworld_app/features/chats/chats_controller.dart';
+import 'package:tinyworld_app/features/companion/companion_controller.dart';
+import 'package:tinyworld_app/features/profile/profile_controller.dart';
 
 class AuthState {
   final bool isLoading;
@@ -30,8 +33,16 @@ class AuthState {
 }
 
 class AuthController extends StateNotifier<AuthState> {
-  AuthController() : super(const AuthState()) {
+  final Ref _ref;
+
+  AuthController(this._ref) : super(const AuthState()) {
     _checkExisting();
+  }
+
+  void _invalidateUserProviders() {
+    _ref.invalidate(profileControllerProvider);
+    _ref.invalidate(chatsControllerProvider);
+    _ref.invalidate(companionControllerProvider);
   }
 
   Future<void> _checkExisting() async {
@@ -151,7 +162,10 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       final resp = await apiClient.get<Map<String, dynamic>>('/profile/me');
       final done = (resp.data?['onboarding_completed'] as bool?) ?? false;
+      final userId = resp.data?['user_id'] as String?;
       await localStorage.setOnboardingDone(done);
+      if (userId != null) await localStorage.saveUserId(userId);
+      _invalidateUserProviders();
       return done;
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) {
@@ -168,6 +182,7 @@ class AuthController extends StateNotifier<AuthState> {
     await GoogleSignIn().signOut();
     await FirebaseAuth.instance.signOut();
     await localStorage.clearAll();
+    _invalidateUserProviders();
     state = const AuthState();
   }
 
@@ -204,5 +219,5 @@ class AuthController extends StateNotifier<AuthState> {
 }
 
 final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
-  (_) => AuthController(),
+  (ref) => AuthController(ref),
 );

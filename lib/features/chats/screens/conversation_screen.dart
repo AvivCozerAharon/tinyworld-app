@@ -162,7 +162,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen>
     _cursorCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
-    )..repeat(reverse: true);
+    );
     if (widget.isLive) {
       _startLiveStream();
     } else {

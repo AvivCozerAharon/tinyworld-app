@@ -38,6 +38,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   double _soundLevel = 0;
   String _streamingText = '';
   bool _isStreaming = false;
+  StreamSubscription<SSEEvent>? _sseSub;
 
   @override
   void initState() {
@@ -160,7 +161,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     _scrollToBottom();
 
     try {
-      sseClient.post('/onboarding/chat/stream', data: {
+      await _sseSub?.cancel();
+      _sseSub = sseClient.post('/onboarding/chat/stream', data: {
         'question_index': _questionIndex,
         'answer': text,
       }).listen((event) {
@@ -229,6 +231,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
 
   @override
   void dispose() {
+    _sseSub?.cancel();
     _ctrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();

@@ -37,10 +37,10 @@ packages:
     dependency: transitive
     description:
       name: archive
-      sha256: a96e8b390886ee8abb49b7bd3ac8df6f451c621619f52a26e815fdcf568959ff
+      sha256: cb6a278ef2dbb298455e1a713bda08524a175630ec643a242c399c932a0a1f7d
       url: "https://pub.dev"
     source: hosted
-    version: "4.0.9"
+    version: "3.6.1"
   args:
     dependency: transitive
     description:
@@ -457,6 +457,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.37.0"
+  flame_tiled:
+    dependency: "direct main"
+    description:
+      name: flame_tiled
+      sha256: "243851c2609cee2a65c7a1deaf3a1364a73ef985d34bd10b01482a9008122cb4"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.21.2"
   flutter:
     dependency: "direct main"
     description: flutter
@@ -788,10 +796,10 @@ packages:
     dependency: "direct main"
     description:
       name: lottie
-      sha256: "8ae0be46dbd9e19641791dc12ee480d34e1fd3f84c749adc05f3ad9342b71b95"
+      sha256: "377d87b8dcef640c04717e93afb86a510f0e1117a399ab94dc4b3f39c85eaa87"
       url: "https://pub.dev"
     source: hosted
-    version: "3.3.2"
+    version: "3.3.0"
   matcher:
     dependency: transitive
     description:
@@ -976,14 +984,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.5.2"
-  posix:
-    dependency: transitive
-    description:
-      name: posix
-      sha256: "185ef7606574f789b40f289c233efa52e96dead518aed988e040a10737febb07"
-      url: "https://pub.dev"
-    source: hosted
-    version: "6.5.0"
   pub_semver:
     dependency: transitive
     description:
@@ -1285,6 +1285,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.10"
+  tiled:
+    dependency: transitive
+    description:
+      name: tiled
+      sha256: "988a57a07df280bb4a5d722c9e400b282d8d9a652b5a2afc8b68e1308bbf8222"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.10.2"
   timing:
     dependency: transitive
     description:

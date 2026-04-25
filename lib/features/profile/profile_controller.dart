@@ -228,5 +228,5 @@ class BrainController extends StateNotifier<BrainState> {
 
 final brainControllerProvider =
     StateNotifierProvider<BrainController, BrainState>(
-  (_) => BrainController()..loadMemories(),
+  (_) => BrainController(),
 );

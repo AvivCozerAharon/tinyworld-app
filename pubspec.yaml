@@ -31,6 +31,7 @@ dependencies:
   google_fonts: ^6.1.0
   confetti: ^0.7.0
   flame: ^1.18.0
+  flame_tiled: ^1.18.0
 
 dev_dependencies:
   flutter_test:
@@ -45,8 +46,5 @@ flutter:
   assets:
     - assets/images/
     - assets/animations/
-    - assets/city/Buildings/
-    - assets/city/Props/
-    - assets/city/grounds/
-    - assets/city/Vehicles/
-    - assets/city/Images/
+    - assets/city/Tiled/
+    - assets/city/Tilemap/

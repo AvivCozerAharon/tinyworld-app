@@ -178,14 +178,15 @@ class _MainShellState extends State<MainShell> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final location = GoRouterState.of(context).uri.path;
-    if (location.startsWith('/profile')) {
-      _currentIndex = 3;
-    } else if (location.startsWith('/companion')) {
-      _currentIndex = 2;
-    } else if (location.startsWith('/chats')) {
-      _currentIndex = 1;
-    } else {
-      _currentIndex = 0;
+    final newIndex = location.startsWith('/profile')
+        ? 3
+        : location.startsWith('/companion')
+            ? 2
+            : location.startsWith('/chats')
+                ? 1
+                : 0;
+    if (newIndex != _currentIndex) {
+      setState(() => _currentIndex = newIndex);
     }
   }
 
