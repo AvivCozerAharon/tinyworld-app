@@ -22,7 +22,7 @@ void main() {
 
     test('generates at least 4 and at most 10 buildings', () {
       final layout = generator.generate(42);
-      expect(layout.buildings.length, inInclusiveRange(4, 10));
+      expect(layout.buildings.length, inInclusiveRange(8, 10));
     });
 
     test('buildings only placed on grass tiles', () {

@@ -76,8 +76,8 @@ class MapGenerator {
     final buildings = <BuildingPlacement>[];
     final shuffledAssets = List<String>.from(_buildingAssets)..shuffle(rng);
 
-    for (int r = 0; r < gridSize && buildings.length < 8; r++) {
-      for (int c = 0; c < gridSize && buildings.length < 8; c++) {
+    for (int r = 0; r < gridSize && buildings.length < 10; r++) {
+      for (int c = 0; c < gridSize && buildings.length < 10; c++) {
         if (grid[r][c] != TileType.grass) continue;
         if (!_adjacentToAsphalt(grid, r, c)) continue;
         buildings.add(BuildingPlacement(
