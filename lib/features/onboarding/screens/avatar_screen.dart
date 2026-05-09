@@ -452,7 +452,7 @@ class _AvatarScreenState extends ConsumerState<AvatarScreen> {
     final ok = await ref
         .read(onboardingControllerProvider.notifier)
         .saveAvatar('custom');
-    if (ok && mounted) context.push('/onboarding/hobbies');
+    if (ok && mounted) context.push('/onboarding/photos');
   }
 
   @override

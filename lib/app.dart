@@ -6,6 +6,7 @@ import 'package:tinyworld_app/features/auth/screens/login_screen.dart';
 import 'package:tinyworld_app/features/auth/screens/email_verification_screen.dart';
 import 'package:tinyworld_app/features/onboarding/screens/liveness_screen.dart';
 import 'package:tinyworld_app/features/onboarding/screens/avatar_screen.dart';
+import 'package:tinyworld_app/features/onboarding/screens/photos_screen.dart';
 import 'package:tinyworld_app/features/onboarding/screens/hobbies_screen.dart';
 import 'package:tinyworld_app/features/onboarding/screens/ai_chat_screen.dart';
 import 'package:tinyworld_app/features/onboarding/screens/welcome_screen.dart';
@@ -92,6 +93,11 @@ final _router = GoRouter(
         pageBuilder: (_, __) =>
             AppAnimations.pageTransition(child: AvatarScreen(extra: __.extra)),
         builder: (_, state) => AvatarScreen(extra: state.extra)),
+    GoRoute(
+        path: '/onboarding/photos',
+        pageBuilder: (_, __) =>
+            AppAnimations.pageTransition(child: const PhotosScreen()),
+        builder: (_, __) => const PhotosScreen()),
     GoRoute(
         path: '/onboarding/hobbies',
         pageBuilder: (_, __) =>
