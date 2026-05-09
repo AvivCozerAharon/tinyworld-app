@@ -32,6 +32,7 @@ dependencies:
   confetti: ^0.7.0
   flame: ^1.18.0
   flame_tiled: ^1.18.0
+  flutter_image_compress: ^2.1.0
 
 dev_dependencies:
   flutter_test:
