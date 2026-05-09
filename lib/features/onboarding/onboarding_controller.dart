@@ -11,6 +11,7 @@ class OnboardingState {
   final Map<String, dynamic>? appearance;
   final List<String> hobbies;
   final String? avatarUrl;
+  final List<String> photoBase64;
   final bool isLoading;
   final String? error;
 
@@ -22,6 +23,7 @@ class OnboardingState {
     this.appearance,
     this.hobbies = const [],
     this.avatarUrl,
+    this.photoBase64 = const [],
     this.isLoading = false,
     this.error,
   });
@@ -34,6 +36,7 @@ class OnboardingState {
     Map<String, dynamic>? appearance,
     List<String>? hobbies,
     String? avatarUrl,
+    List<String>? photoBase64,
     bool? isLoading,
     String? error,
   }) =>
@@ -45,6 +48,7 @@ class OnboardingState {
         appearance: appearance ?? this.appearance,
         hobbies: hobbies ?? this.hobbies,
         avatarUrl: avatarUrl ?? this.avatarUrl,
+        photoBase64: photoBase64 ?? this.photoBase64,
         isLoading: isLoading ?? this.isLoading,
         error: error,
       );
@@ -119,6 +123,19 @@ class OnboardingController extends StateNotifier<OnboardingState> {
         isLoading: false,
         currentStep: 3,
       );
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> savePhotos(List<String> base64Photos) async {
+    state = state.copyWith(isLoading: true, error: null, photoBase64: base64Photos);
+    try {
+      await _refreshToken();
+      await apiClient.post('/onboarding/photos', data: {'photos': base64Photos});
+      state = state.copyWith(isLoading: false);
       return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
