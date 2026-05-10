@@ -6,6 +6,13 @@ import 'package:tinyworld_app/core/notifications/fcm_service.dart';
 import 'package:tinyworld_app/core/storage/local_storage.dart';
 import 'package:tinyworld_app/shared/widgets/api_error_banner.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  await firebaseMessagingBackgroundHandler(message);
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,9 +36,33 @@ Future<void> main() async {
     } catch (_) {}
   }
 
-  try {
-    await fcmService.init();
-  } catch (_) {}
+  if (!kIsWeb) {
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  }
 
-  runApp(const ProviderScope(child: ApiErrorBanner(child: TinyWorldApp())));
+  runApp(const ProviderScope(child: ApiErrorBanner(child: _AppWrapper())));
+}
+
+class _AppWrapper extends ConsumerStatefulWidget {
+  const _AppWrapper();
+
+  @override
+  ConsumerState<_AppWrapper> createState() => _AppWrapperState();
+}
+
+class _AppWrapperState extends ConsumerState<_AppWrapper> {
+  @override
+  void initState() {
+    super.initState();
+    if (!kIsWeb) {
+      try {
+        ref.read(fcmServiceProvider).init();
+      } catch (_) {}
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const TinyWorldApp();
+  }
 }

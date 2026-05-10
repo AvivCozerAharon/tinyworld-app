@@ -11,6 +11,7 @@ class ChatItem {
   final String humanizeState;
   final String ts;
   final String lastMessage;
+  final int unreadCount;
 
   const ChatItem({
     required this.simId,
@@ -21,6 +22,7 @@ class ChatItem {
     required this.humanizeState,
     required this.ts,
     this.lastMessage = '',
+    this.unreadCount = 0,
   });
 }
 
@@ -107,6 +109,7 @@ class ChatsController extends StateNotifier<ChatsState> {
             humanizeState: d['humanize_state'] as String? ?? 'simulated',
             ts: d['ts'] as String? ?? '',
             lastMessage: d['last_message'] as String? ?? '',
+            unreadCount: (d['unread_count'] as num?)?.toInt() ?? 0,
           ))
       .toList();
 
@@ -125,7 +128,9 @@ class ChatsController extends StateNotifier<ChatsState> {
                   compatibility: c.compatibility,
                   humanizeState: 'humanize_pending_sent',
                   ts: c.ts,
-                  lastMessage: c.lastMessage)
+                  lastMessage: c.lastMessage,
+                  unreadCount: c.unreadCount,
+                )
               : c)
           .toList();
       state = state.copyWith(chats: updated);
@@ -150,7 +155,9 @@ class ChatsController extends StateNotifier<ChatsState> {
                   compatibility: c.compatibility,
                   humanizeState: 'humanized',
                   ts: c.ts,
-                  lastMessage: c.lastMessage)
+                  lastMessage: c.lastMessage,
+                  unreadCount: c.unreadCount,
+                )
               : c)
           .toList();
       state = state.copyWith(chats: updated);
@@ -158,6 +165,27 @@ class ChatsController extends StateNotifier<ChatsState> {
     } catch (_) {
       return false;
     }
+  }
+
+  void clearUnread(String simId) {
+    state = state.copyWith(
+      chats: state.chats.map((c) {
+        if (c.simId == simId && c.unreadCount > 0) {
+          return ChatItem(
+            simId: c.simId,
+            otherUserId: c.otherUserId,
+            otherAvatar: c.otherAvatar,
+            otherName: c.otherName,
+            compatibility: c.compatibility,
+            humanizeState: c.humanizeState,
+            ts: c.ts,
+            lastMessage: c.lastMessage,
+            unreadCount: 0,
+          );
+        }
+        return c;
+      }).toList(),
+    );
   }
 
   void deleteChat(String simId) {

@@ -157,7 +157,23 @@ class ChatListItem extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            if (chat.unreadCount > 0)
+              Container(
+                margin: const EdgeInsets.only(right: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: TwColors.primary,
+                  borderRadius: BorderRadius.circular(TwRadius.pill),
+                ),
+                child: Text(
+                  chat.unreadCount > 99 ? '99+' : '${chat.unreadCount}',
+                  style: GoogleFonts.spaceGrotesk(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
             _StateChip(state: chat.humanizeState),
           ],
         ),

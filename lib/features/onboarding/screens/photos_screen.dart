@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,6 +25,17 @@ class _PhotosScreenState extends ConsumerState<PhotosScreen> {
 
   bool get _canContinue => _slots.any((s) => s != null);
 
+  Future<Uint8List> _compress(Uint8List bytes) async {
+    if (kIsWeb) return bytes;
+    return await FlutterImageCompress.compressWithList(
+      bytes,
+      minWidth: 800,
+      minHeight: 800,
+      quality: 80,
+      format: CompressFormat.jpeg,
+    );
+  }
+
   Future<void> _pickPhoto(int index) async {
     final file = await _picker.pickImage(source: ImageSource.gallery);
     if (file == null) return;
@@ -30,18 +43,12 @@ class _PhotosScreenState extends ConsumerState<PhotosScreen> {
     setState(() => _uploading[index] = true);
     try {
       final bytes = await file.readAsBytes();
-      final compressed = await FlutterImageCompress.compressWithList(
-        bytes,
-        minWidth: 800,
-        minHeight: 800,
-        quality: 80,
-        format: CompressFormat.jpeg,
-      );
+      final compressed = await _compress(bytes);
       setState(() => _slots[index] = base64Encode(compressed));
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erro ao processar foto. Tente novamente.')),
+          SnackBar(content: Text('Erro: $e')),
         );
       }
     } finally {

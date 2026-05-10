@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tinyworld_app/core/notifications/fcm_service.dart';
 import 'package:tinyworld_app/core/storage/local_storage.dart';
 import 'package:tinyworld_app/core/theme/styles.dart';
 import 'package:tinyworld_app/features/auth/screens/login_screen.dart';
@@ -181,6 +182,17 @@ class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final pending = FCMService.consumePendingRoute();
+      if (pending != null) {
+        GoRouter.of(context).go(pending);
+      }
+    });
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final location = GoRouterState.of(context).uri.path;
@@ -198,9 +210,13 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    final location = GoRouterState.of(context).uri.path;
+    final isChatDetail = location.startsWith('/chats/') && location != '/chats' && location != '/chats/live';
     return Scaffold(
       body: widget.child,
-      bottomNavigationBar: Container(
+      bottomNavigationBar: isChatDetail
+          ? null
+          : Container(
         decoration: const BoxDecoration(
           color: TwColors.surface,
           border: Border(

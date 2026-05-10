@@ -33,6 +33,9 @@ dependencies:
   flame: ^1.18.0
   flame_tiled: ^1.18.0
   flutter_image_compress: ^2.1.0
+  flutter_local_notifications: ^18.0.1
+  record: ^5.1.2
+  audioplayers: ^6.1.0
 
 dev_dependencies:
   flutter_test:

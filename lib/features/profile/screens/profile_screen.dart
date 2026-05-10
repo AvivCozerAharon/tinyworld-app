@@ -1,7 +1,12 @@
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:tinyworld_app/core/theme/styles.dart';
 import 'package:tinyworld_app/features/auth/auth_controller.dart';
 import 'package:tinyworld_app/features/chats/chats_controller.dart';
@@ -10,12 +15,30 @@ import 'package:tinyworld_app/features/onboarding/widgets/avatar_preview.dart';
 import 'package:tinyworld_app/shared/widgets/app_animations.dart';
 import 'package:tinyworld_app/core/storage/local_storage.dart';
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  final _picker = ImagePicker();
+  final List<String?> _photoSlots = [null, null, null];
+  final List<bool> _uploading = [false, false, false];
+  bool _initialized = false;
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(profileControllerProvider);
+
+    if (!state.isLoading && state.profile != null && !_initialized) {
+      _initialized = true;
+      final photos = state.profile!.photos;
+      for (int i = 0; i < photos.length && i < 3; i++) {
+        _photoSlots[i] = photos[i];
+      }
+    }
 
     return Scaffold(
       backgroundColor: TwColors.bg,
@@ -42,6 +65,42 @@ class ProfileScreen extends ConsumerWidget {
         children: [
           const SizedBox(height: 16),
           _buildHeader(context, ref, profile, totalChats),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                Text('Suas fotos',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: TwColors.muted,
+                      letterSpacing: 0.5,
+                    )),
+                const Spacer(),
+                Text('Visível após humanizar',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 11,
+                      color: TwColors.muted,
+                    )),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: List.generate(3, (i) => Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: i == 0 ? 0 : 5,
+                    right: i == 2 ? 0 : 5,
+                  ),
+                  child: _buildPhotoSlot(i),
+                ),
+              )),
+            ),
+          ),
           const SizedBox(height: 20),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -105,6 +164,130 @@ class ProfileScreen extends ConsumerWidget {
           const SizedBox(height: 40),
         ],
       ),
+    );
+  }
+
+  Future<Uint8List> _compress(Uint8List bytes) async {
+    if (kIsWeb) return bytes;
+    return await FlutterImageCompress.compressWithList(
+      bytes,
+      minWidth: 800,
+      minHeight: 800,
+      quality: 80,
+      format: CompressFormat.jpeg,
+    );
+  }
+
+  Future<void> _pickPhoto(int index) async {
+    final file = await _picker.pickImage(source: ImageSource.gallery);
+    if (file == null) return;
+    setState(() => _uploading[index] = true);
+    try {
+      final bytes = await file.readAsBytes();
+      final compressed = await _compress(bytes);
+      final b64 = base64Encode(compressed);
+      setState(() => _photoSlots[index] = b64);
+      final photos = _photoSlots.whereType<String>().toList();
+      final ok = await ref.read(profileControllerProvider.notifier).savePhotos(photos);
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro ao salvar foto no servidor.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploading[index] = false);
+    }
+  }
+
+  Future<void> _removePhoto(int index) async {
+    setState(() => _photoSlots[index] = null);
+    final photos = _photoSlots.whereType<String>().toList();
+    try {
+      if (photos.isNotEmpty) {
+        await ref.read(profileControllerProvider.notifier).savePhotos(photos);
+      }
+    } catch (_) {}
+  }
+
+  Widget _buildPhotoSlot(int i) {
+    final b64 = _photoSlots[i];
+    final loading = _uploading[i];
+    return AspectRatio(
+      aspectRatio: 0.85,
+      child: GestureDetector(
+        onTap: b64 == null && !loading ? () => _pickPhoto(i) : null,
+        child: Container(
+          decoration: BoxDecoration(
+            color: TwColors.card,
+            borderRadius: BorderRadius.circular(TwRadius.lg),
+            border: Border.all(color: TwColors.border),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(TwRadius.lg - 1),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (b64 != null)
+                  GestureDetector(
+                    onTap: () => _showPhotoViewer(context, _photoSlots.whereType<String>().toList(), _photoSlots.whereType<String>().toList().indexOf(b64)),
+                    child: Image.memory(base64Decode(b64), fit: BoxFit.cover),
+                  )
+                else if (loading)
+                  const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2, color: TwColors.primary),
+                  )
+                else
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add_photo_alternate_outlined, size: 28, color: TwColors.muted),
+                      const SizedBox(height: 6),
+                      Text(
+                        i == 0 ? 'Principal' : 'Opcional',
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: TwColors.muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                if (b64 != null)
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: GestureDetector(
+                      onTap: () => _removePhoto(i),
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close, size: 14, color: Colors.white),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPhotoViewer(BuildContext context, List<String> photos, int initial) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (_) => _PhotoViewerDialog(photos: photos, initialIndex: initial),
     );
   }
 
@@ -323,6 +506,88 @@ class _SectionCard extends StatelessWidget {
             ),
           ),
         ),
+    );
+  }
+}
+
+class _PhotoViewerDialog extends StatefulWidget {
+  final List<String> photos;
+  final int initialIndex;
+
+  const _PhotoViewerDialog({required this.photos, required this.initialIndex});
+
+  @override
+  State<_PhotoViewerDialog> createState() => _PhotoViewerDialogState();
+}
+
+class _PhotoViewerDialogState extends State<_PhotoViewerDialog> {
+  late final PageController _ctrl;
+  late int _current;
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.initialIndex;
+    _ctrl = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).pop(),
+      child: Stack(
+        children: [
+          PageView.builder(
+            controller: _ctrl,
+            itemCount: widget.photos.length,
+            onPageChanged: (i) => setState(() => _current = i),
+            itemBuilder: (_, i) => Center(
+              child: InteractiveViewer(
+                child: Image.memory(
+                  base64Decode(widget.photos[i]),
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            right: 12,
+            child: IconButton(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.close, color: Colors.white, size: 28),
+            ),
+          ),
+          if (widget.photos.length > 1)
+            Positioned(
+              bottom: MediaQuery.of(context).padding.bottom + 24,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  widget.photos.length,
+                  (i) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    width: _current == i ? 16 : 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: _current == i ? Colors.white : Colors.white38,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

@@ -8,6 +8,8 @@ class ChatInputBar extends StatefulWidget {
   final int replyingToIndex;
   final VoidCallback onCancelReply;
   final void Function(int) onReply;
+  final VoidCallback? onPhoto;
+  final VoidCallback? onAudio;
 
   const ChatInputBar({
     super.key,
@@ -16,6 +18,8 @@ class ChatInputBar extends StatefulWidget {
     this.replyingToIndex = -1,
     required this.onCancelReply,
     required this.onReply,
+    this.onPhoto,
+    this.onAudio,
   });
 
   @override
@@ -92,6 +96,37 @@ class _ChatInputBarState extends State<ChatInputBar> {
             ),
           Row(
             children: [
+              if (widget.onAudio != null)
+                GestureDetector(
+                  onTap: widget.onAudio,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    margin: const EdgeInsets.only(right: 4),
+                    decoration: BoxDecoration(
+                      color: TwColors.card,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: TwColors.border),
+                    ),
+                    child: const Icon(Icons.mic, size: 18, color: TwColors.muted),
+                  ),
+                ),
+              if (widget.onPhoto != null)
+                GestureDetector(
+                  onTap: widget.onPhoto,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    margin: const EdgeInsets.only(right: 4),
+                    decoration: BoxDecoration(
+                      color: TwColors.card,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: TwColors.border),
+                    ),
+                    child: const Icon(Icons.photo_camera_outlined,
+                        size: 18, color: TwColors.muted),
+                  ),
+                ),
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
@@ -120,6 +155,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
               ),
               const SizedBox(width: 8),
               GestureDetector(
+                onTap: widget.onSend,
                 onLongPress: () {
                   if (widget.replyingToIndex >= 0) {
                     widget.onCancelReply();

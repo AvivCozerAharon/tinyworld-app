@@ -6,6 +6,7 @@ class ProfileData {
   final String name;
   final String avatarUrl;
   final List<String> hobbies;
+  final List<String> photos;
   final bool onboardingCompleted;
 
   const ProfileData({
@@ -13,6 +14,7 @@ class ProfileData {
     required this.name,
     required this.avatarUrl,
     required this.hobbies,
+    this.photos = const [],
     required this.onboardingCompleted,
   });
 }
@@ -47,11 +49,33 @@ class ProfileController extends StateNotifier<ProfileState> {
           name: data['name'] as String,
           avatarUrl: data['avatar_url'] as String? ?? '',
           hobbies: (data['hobbies'] as List?)?.cast<String>() ?? [],
+          photos: (data['photos'] as List?)?.cast<String>() ?? [],
           onboardingCompleted: data['onboarding_completed'] as bool? ?? false,
         ),
       );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  Future<bool> savePhotos(List<String> photos) async {
+    try {
+      await apiClient.post('/onboarding/photos', data: {'photos': photos});
+      if (state.profile != null) {
+        state = state.copyWith(
+          profile: ProfileData(
+            userId: state.profile!.userId,
+            name: state.profile!.name,
+            avatarUrl: state.profile!.avatarUrl,
+            hobbies: state.profile!.hobbies,
+            photos: photos,
+            onboardingCompleted: state.profile!.onboardingCompleted,
+          ),
+        );
+      }
+      return true;
+    } catch (e) {
+      return false;
     }
   }
 }
@@ -89,13 +113,14 @@ class TrainState {
 
   TrainState copyWith({
     TrainQuestion? currentQuestion,
+    bool clearCurrentQuestion = false,
     int? totalAnswered,
     bool? isLoading,
     String? error,
     String? lastFeedback,
   }) =>
       TrainState(
-        currentQuestion: currentQuestion ?? this.currentQuestion,
+        currentQuestion: clearCurrentQuestion ? null : (currentQuestion ?? this.currentQuestion),
         totalAnswered: totalAnswered ?? this.totalAnswered,
         isLoading: isLoading ?? this.isLoading,
         error: error,
@@ -152,6 +177,7 @@ class TrainController extends StateNotifier<TrainState> {
                 category: next['category'] as String? ?? 'general',
               )
             : null,
+        clearCurrentQuestion: next == null,
       );
       return reaction;
     } catch (e) {
